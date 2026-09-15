@@ -1,0 +1,42 @@
+name: Import Nuvio upstream
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/import-upstream.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Import pinned NuvioMobile source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --filter=blob:none https://github.com/NuvioMedia/NuvioMobile.git /tmp/nuvio
+          cd /tmp/nuvio
+          git checkout ee06558d91110d53cac851ac75c0d7c82b455b8a
+          cd "$GITHUB_WORKSPACE"
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='README.md' \
+            --exclude='tiep tuc du an' \
+            --exclude='patches/' \
+            /tmp/nuvio/ ./
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No source changes to import'
+            exit 0
+          fi
+          git commit -m 'Import NuvioMobile upstream ee06558'
+          git push origin HEAD:main
