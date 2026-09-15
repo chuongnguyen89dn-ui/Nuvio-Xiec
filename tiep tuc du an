@@ -1,0 +1,16 @@
+TIEP TUC DU AN — NUVIO-XIEC
+
+BAT DAU: 2026-09-15
+
+Muc tieu:
+- Nuvio client rieng ho tro Xiec actor filmography.
+- Giu nguyen native TMDB actor/person flow.
+- Actor Xiec khong co tmdbId: fallback sang filmography Xiec.
+- Khong dung tmdbId gia.
+- Chi ket luan hoan thanh sau khi build va kiem tra Xiec movie -> actor -> Xiec filmography.
+
+2026-09-15
+- Khoi tao repo.
+- Xac dinh Nuvio native cast click yeu cau MetaPerson.tmdbId > 0.
+- Addon MetaDetailsParser chi parse cast name/character/photo, khong nhan custom tmdbId tu addon.
+- Xiec backend da co actor index/filter/filmography; client se fallback sang duong nay khi khong co TMDB id.
