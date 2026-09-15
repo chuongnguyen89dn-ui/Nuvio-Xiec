@@ -1,0 +1,47 @@
+name: Build Nuvio-Xiec actor filmography
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/apply-xiec-actor-patch.py'
+      - '.github/workflows/xiec-actor-build.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply Xiec actor patch
+        run: python3 scripts/apply-xiec-actor-patch.py
+      - name: Commit patched client source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add composeApp/src/commonMain/kotlin/com/nuvio/app
+          if ! git diff --cached --quiet; then
+            git commit -m 'Enable Xiec actor filmography navigation'
+            git push origin HEAD:main
+          fi
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Compile Android client
+        run: |
+          chmod +x gradlew
+          ./gradlew :androidApp:assembleFullDebug --stacktrace
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nuvio-Xiec-debug-apk
+          path: androidApp/build/outputs/apk/**/*.apk
+          if-no-files-found: error
