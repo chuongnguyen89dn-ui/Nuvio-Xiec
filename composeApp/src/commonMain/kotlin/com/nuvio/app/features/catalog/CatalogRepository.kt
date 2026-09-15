@@ -135,6 +135,7 @@ object CatalogRepository {
                         type = target.contentType,
                         catalogId = target.catalogId,
                         genre = target.genre,
+                        actor = target.actor,
                         skip = requestedSkip.takeIf { it > 0 },
                         forceRefresh = forceRefresh,
                     )

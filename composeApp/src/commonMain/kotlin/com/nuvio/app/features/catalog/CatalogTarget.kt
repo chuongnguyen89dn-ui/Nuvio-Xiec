@@ -12,6 +12,7 @@ sealed interface CatalogTarget {
         override val contentType: String,
         val catalogId: String,
         val genre: String? = null,
+        val actor: String? = null,
         override val supportsPagination: Boolean = false,
     ) : CatalogTarget
 

@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import com.nuvio.app.features.addons.AddonRepository
+import com.nuvio.app.features.catalog.CatalogTarget
+import com.nuvio.app.features.addons.enabledAddons
+import com.nuvio.app.navigation.CatalogRoute
 import com.nuvio.app.features.details.MetaDetailsScreen
 import com.nuvio.app.features.details.PersonDetailScreen
 import com.nuvio.app.features.details.TmdbEntityBrowseScreen
@@ -109,6 +113,33 @@ internal fun DetailsDestination(
                         } ?: false,
                     ),
                 )
+            } else if (!person.addonCatalogUrl.isNullOrBlank()) {
+                val xiecManifest = AddonRepository.uiState.value.addons
+                    .enabledAddons()
+                    .mapNotNull { it.manifest }
+                    .firstOrNull { it.id == "community.xiec.catalog" }
+                if (xiecManifest != null) {
+                    val launchId = CatalogLaunchStore.put(
+                        CatalogLaunch(
+                            title = person.name,
+                            subtitle = "Xiec • Filmography",
+                            target = CatalogTarget.Addon(
+                                manifestUrl = xiecManifest.transportUrl,
+                                contentType = "movie",
+                                catalogId = "xiec_latest_movies",
+                                actor = person.name,
+                                supportsPagination = true,
+                            ),
+                        ),
+                    )
+                    navController.navigate(
+                        CatalogRoute(
+                            launchId = launchId,
+                            title = person.name,
+                            subtitle = "Xiec • Filmography",
+                        ),
+                    )
+                }
             }
         },
         onCompanyClick = { company, entityKind ->

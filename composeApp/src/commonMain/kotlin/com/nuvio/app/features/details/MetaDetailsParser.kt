@@ -155,7 +155,7 @@ internal object MetaDetailsParser {
                 link.category.equals("actor", ignoreCase = true) ||
                 link.category.equals("actors", ignoreCase = true)
         }.map { link ->
-            MetaPerson(name = link.name)
+            MetaPerson(name = link.name, addonCatalogUrl = link.url)
         }
 
         return mergePeople(appExtraCast, topLevelCast, linkedCast)
@@ -226,6 +226,7 @@ internal object MetaDetailsParser {
                     existing.copy(
                         role = existing.role ?: person.role,
                         photo = existing.photo ?: person.photo,
+                        addonCatalogUrl = existing.addonCatalogUrl ?: person.addonCatalogUrl,
                     )
                 }
             }

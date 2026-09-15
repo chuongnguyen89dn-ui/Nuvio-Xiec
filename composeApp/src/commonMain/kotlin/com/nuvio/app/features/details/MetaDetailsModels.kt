@@ -70,6 +70,8 @@ data class MetaPerson(
     val role: String? = null,
     val photo: String? = null,
     val tmdbId: Int? = null,
+    // Nuvio-Xiec: optional addon catalog link for people not represented by TMDB.
+    val addonCatalogUrl: String? = null,
 )
 
 data class MetaCompany(

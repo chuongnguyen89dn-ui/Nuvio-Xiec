@@ -83,7 +83,9 @@ fun DetailCastSection(
                         sizing = sizing,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope,
-                        onClick = if (onCastClick != null && person.tmdbId != null && person.tmdbId > 0) {
+                        onClick = if (onCastClick != null &&
+                            ((person.tmdbId != null && person.tmdbId > 0) || !person.addonCatalogUrl.isNullOrBlank())
+                        ) {
                             { onCastClick(person, sharedTransitionKey) }
                         } else {
                             null
