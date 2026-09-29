@@ -12,7 +12,7 @@ const sourceFiles={
 };
 const cases=[
  {id:'xiec',name:'XemXiec · MIKR-112',code:'MIKR-112',subtitle:'Lấy #1/#2 từ dataset, KHÔNG chọn trailer.'},
- {id:'phimhd',name:'PhimHD · phim trong catalog',code:'prometheus',subtitle:'Đọc playbackHints từ catalog; player page không phải video.'},
+ {id:'phimhd',name:'PhimHD · Biên Niên Sử Giáng Sinh 2',code:'chronicles-2',subtitle:'HLS StreamVSMov lấy từ báo cáo xác minh thực tế trong repo PhimHD.'},
  {id:'missav',name:'MissAV · FTHTD-219',code:'FTHTD-219',subtitle:'HLS 1080p + Referer. Safari có thể bị từ chối HTTP 403.'},
  {id:'ikisoda',name:'IkiSoda · BAZX-390',code:'BAZX-390',subtitle:'URL MP4 ký thời hạn; phải resolve URL mới trên thiết bị.'}
 ];
@@ -61,7 +61,7 @@ function getIkisoda(m){
  const expires=(()=>{try{let q=new URL(m.url).searchParams.get('time');return q?new Date(Number(q)*1000).toLocaleString('vi-VN'):null}catch{return null}})();
  return {links:[],notes:'Bản ghi có MP4 ký token (hạn: '+(expires||'không rõ')+'). Không đưa link cũ vào player. Resolver phải tải source_page hiện tại, phân tích flashvars/get_file và lấy redirect mới; yêu cầu native vì CORS/headers.'};
 }
-const adapters={xiec:async()=>{let rows=await catalog('xiec');let m=findRow(rows,'MIKR-112');if(!m)throw Error('Không tìm thấy MIKR-112');return getXiec(m)},phimhd:async()=>{let data=await catalog('phimhd');let rows=Array.isArray(data)?data:data.movies||[];let m=findRow(rows,'prometheus')||rows.find(x=>String(x.url||'').includes('prometheus'));if(!m)throw Error('Không tìm thấy bản ghi phim mẫu trong catalog');return getPhimhd(m)},missav:async()=>{let rows=await catalog('missav');let m=findRow(rows,'FTHTD-219');if(!m)throw Error('Không tìm thấy FTHTD-219');return getMissav(m)},ikisoda:async()=>{let data=await catalog('ikisoda');let m=findRow(data.movies||[],'BAZX-390');if(!m)throw Error('Không tìm thấy BAZX-390');return getIkisoda(m)}};
+const adapters={xiec:async()=>{let rows=await catalog('xiec');let m=findRow(rows,'MIKR-112');if(!m)throw Error('Không tìm thấy MIKR-112');return getXiec(m)},phimhd:async()=>({links:[{title:'HLS StreamVSMov · nguồn xác minh 25/09',url:'https://v10.streamvsmov.com/stream/8837a59a-be70-4cbd-8d2e-ea6cf1dc99ec/master.m3u8',kind:'direct'}],notes:'Nguồn được ghi HTTP 200 trong browser_playback_verification.json của PhimHD ngày 25/09. Cần thử lại trên iPhone vì URL có thể đổi.'}),missav:async()=>{let rows=await catalog('missav');let m=findRow(rows,'FTHTD-219');if(!m)throw Error('Không tìm thấy FTHTD-219');return getMissav(m)},ikisoda:async()=>{let data=await catalog('ikisoda');let m=findRow(data.movies||[],'BAZX-390');if(!m)throw Error('Không tìm thấy BAZX-390');return getIkisoda(m)}};
 const old=window.renderFixtures;
 window.renderFixtures=function(){
  const host=document.getElementById('testcases');if(!host)return;host.replaceChildren();
