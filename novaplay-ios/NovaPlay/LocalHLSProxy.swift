@@ -65,7 +65,8 @@ final class LocalHLSProxy {
         parts.scheme = "http"
         parts.host = "127.0.0.1"
         parts.port = Int(port)
-        parts.path = "/media"
+        let ext = remote.pathExtension.lowercased()
+        parts.path = ext == "m3u8" ? "/playlist.m3u8" : ext == "mp4" ? "/video.mp4" : "/segment.ts"
         parts.queryItems = [URLQueryItem(name: "u", value: remote.absoluteString)]
         return parts.url!
     }
@@ -103,6 +104,9 @@ final class LocalHLSProxy {
             if let referer = referer { request.setValue(referer, forHTTPHeaderField: "Referer") }
             if let origin = origin { request.setValue(origin, forHTTPHeaderField: "Origin") }
             if let range = range { request.setValue(range, forHTTPHeaderField: "Range") }
+            else if remote.pathExtension.lowercased() == "mp4" || remote.path.contains("remote_control.php") {
+                request.setValue("bytes=0-1048575", forHTTPHeaderField: "Range")
+            }
             let (bytes, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw ProxyFailure.unavailable }
             print("[NOVAPLAY_HLS] host=\(remote.host ?? "?") status=\(http.statusCode) bytes=\(bytes.count)")
