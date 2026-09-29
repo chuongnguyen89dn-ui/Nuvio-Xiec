@@ -35,19 +35,10 @@
     {
       "id": "missav",
       "label": "MissAV · FTHTD-219",
-      "type": "direct",
+      "type": "native-required",
       "page": "https://missav.ws/vi/fthtd-219",
-      "streams": [
-        {
-          "name": "1080p mirror",
-          "url": "https://surrit.mrstcdn.store/0e2774fd-4870-4259-9ee5-12798981d0be/1080p/video.m3u8"
-        },
-        {
-          "name": "1080p origin",
-          "url": "https://surrit.com/0e2774fd-4870-4259-9ee5-12798981d0be/1080p/video.m3u8"
-        }
-      ],
-      "note": "Báo cáo dự án xác nhận cần Referer cho HLS; Safari PWA không thể đặt HTTP headers playlist/segment. Nếu 403 phải dùng native iOS với request hợp lệ."
+      "streams": [],
+      "note": "HLS 1080p cần Referer ở playlist và segment. Kết quả iPhone: origin không phát. Bản web không thể tự đặt header; kiểm thử bằng bản iOS native với local proxy, không dùng Render."
     },
     {
       "id": "ikisoda",
@@ -55,7 +46,7 @@
       "type": "resolve-needed",
       "page": "https://ikisoda.com/",
       "streams": [],
-      "note": "Repo có signed MP4 cũ nhưng token thời hạn đã hết. Resolver hiện tại cần tải lại trang, lấy get_file rồi redirect để nhận URL mới; Safari PWA bị CORS/cookie. Không gắn URL hết hạn để báo giả là phát được."
+      "note": "BAZX-390 trong dataset chỉ có signed URL cũ và KHÔNG có source_page. Không thể tạo link mới từ JSON này. Cần source_page hiện tại và resolver lấy get_file/redirect trên thiết bị; bản web không hiển thị nút phát giả."
     }
   ]
 }
