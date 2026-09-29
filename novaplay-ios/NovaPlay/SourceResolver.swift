@@ -37,7 +37,7 @@ final class SourceResolver {
         .init(id: "xiec", title: "XemXiec · MIKR-112", detail: "Phim chính #1/#2 từ dữ liệu GitHub, không dùng trailer."),
         .init(id: "phimhd", title: "PhimHD · Biên Niên Sử Giáng Sinh 2", detail: "HLS từ kiểm thử RoPhim/StreamVSMov ngày 25/09."),
         .init(id: "missav", title: "MissAV · FTHTD-219", detail: "HLS 1080p kèm Referer/Origin trên iPhone."),
-        .init(id: "ikisoda", title: "IkiSoda · BAZX-390", detail: "Yêu cầu lấy lại URL MP4 còn hạn.")
+        .init(id: "ikisoda", title: "IkiSoda · HSM-061", detail: "Lấy get_file 1080p từ trang nguồn thực tế, không dùng token cũ.")
     ]
 
     private func json(_ address: String) async throws -> Any {
@@ -107,12 +107,10 @@ final class SourceResolver {
             ]
 
         case "ikisoda":
-            let rows = asObjects(try await json(root + "missav/ikisoda-data/data/ikisoda-catalog.json"))
-            guard let movie = rows.first(where: { ($0["code"] as? String)?.uppercased() == "BAZX-390" }) else {
-                throw SourceError.missing("Không tìm thấy BAZX-390")
-            }
-            guard let page = goodURL(movie["source_page"]) else {
-                throw SourceError.missing("Dataset không có source_page. URL có token cũ không được dùng làm link phát.")
+            // Existing source project's documented test page. The BAZX-390 catalog
+            // record has no source_page and only an expired signed URL.
+            guard let page = goodURL("https://ikisoda.com/videos/hsm-061-hino-akari-s-cosplay-debut-erection-explosion/") else {
+                throw SourceError.invalid("Invalid IkiSoda test page")
             }
             var request = URLRequest(url: page)
             request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
@@ -120,25 +118,26 @@ final class SourceResolver {
             let (htmlData, response) = try await session.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200,
                   let html = String(data: htmlData, encoding: .utf8) else {
-                throw SourceError.missing("Không tải được trang IkiSoda hiện tại")
+                throw SourceError.missing("IkiSoda page unavailable; check status in device log")
             }
             let decoded = html.replacingOccurrences(of: "\\/", with: "/").replacingOccurrences(of: "&amp;", with: "&")
-            let regex = try NSRegularExpression(pattern: #"https?://ikisoda\.com/get_file/[^"'<>\s]+?_1080p\.mp4/?(?:\?[^"'<>\s]*)?"#, options: [.caseInsensitive])
+            let regex = try NSRegularExpression(pattern: #"https?://ikisoda\\.com/get_file/[^"'<>\\s]+?22675_1080p\\.mp4/?(?:\\?[^"'<>\\s]*)?"#, options: [.caseInsensitive])
             let range = NSRange(decoded.startIndex..<decoded.endIndex, in: decoded)
             guard let match = regex.firstMatch(in: decoded, range: range),
                   let matchRange = Range(match.range, in: decoded),
                   let mediaURL = URL(string: String(decoded[matchRange])) else {
-                throw SourceError.missing("Không tìm thấy get_file 1080p mới trên trang nguồn")
+                throw SourceError.missing("HSM-061: no fresh get_file 1080p on source page")
             }
             var mediaRequest = URLRequest(url: mediaURL)
             mediaRequest.setValue(page.absoluteString, forHTTPHeaderField: "Referer")
+            mediaRequest.setValue("https://ikisoda.com", forHTTPHeaderField: "Origin")
             mediaRequest.setValue("bytes=0-1", forHTTPHeaderField: "Range")
             let (_, mediaResponse) = try await session.data(for: mediaRequest)
             guard let http = mediaResponse as? HTTPURLResponse, [200, 206].contains(http.statusCode),
                   let signed = http.url, signed.scheme == "https" else {
-                throw SourceError.missing("Không nhận được URL MP4 hợp lệ từ get_file")
+                throw SourceError.missing("HSM-061: get_file did not yield an accessible MP4")
             }
-            return [PlaybackTarget(url: signed, referer: page.absoluteString, origin: "https://ikisoda.com", title: "1080p · freshly resolved")]
+            return [PlaybackTarget(url: signed, referer: page.absoluteString, origin: "https://ikisoda.com", title: "HSM-061 · fresh 1080p")]
 
         default: throw SourceError.invalid("Nguồn chưa được hỗ trợ")
         }
