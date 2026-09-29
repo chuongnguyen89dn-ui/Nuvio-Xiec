@@ -1,0 +1,61 @@
+{
+  "updated": "2026-09-29",
+  "renderCalls": 0,
+  "sources": [
+    {
+      "id": "xemxiec",
+      "label": "XemXiec · MIKR-112",
+      "type": "direct",
+      "page": "https://github.com/chuongnguyen89dn-ui/XemXiec/blob/main/ket_qua_1500_phim.json",
+      "streams": [
+        {
+          "name": "Phim chính #1",
+          "url": "https://rr3---sn-8pxuuxa-i5ozr.qooglevideo.com/manifest-s1/03225.vl"
+        },
+        {
+          "name": "Phim chính #2",
+          "url": "https://rr3---sn-8pxuuxa-i5ozr.qooglevideo.com/manifest-s2/03225.vl"
+        }
+      ],
+      "note": "URL gốc trong dataset XemXiec. .vl có thể không phải HLS/MP4 chuẩn; Safari native chưa chắc nhận được. Không đổi thành trailer."
+    },
+    {
+      "id": "phimhd",
+      "label": "PhimHD · Biên Niên Sử Giáng Sinh: Phần Hai",
+      "type": "direct",
+      "page": "https://rophims.team/phim/bien-nien-su-giang-sinh-phan-hai",
+      "streams": [
+        {
+          "name": "HLS từ báo cáo browser 25/09",
+          "url": "https://v10.streamvsmov.com/stream/8837a59a-be70-4cbd-8d2e-ea6cf1dc99ec/master.m3u8"
+        }
+      ],
+      "note": "URL lấy từ browser_playback_verification.json, có thể hết hạn/chuyển server. Không gọi API Render."
+    },
+    {
+      "id": "missav",
+      "label": "MissAV · FTHTD-219",
+      "type": "direct",
+      "page": "https://missav.ws/vi/fthtd-219",
+      "streams": [
+        {
+          "name": "1080p mirror",
+          "url": "https://surrit.mrstcdn.store/0e2774fd-4870-4259-9ee5-12798981d0be/1080p/video.m3u8"
+        },
+        {
+          "name": "1080p origin",
+          "url": "https://surrit.com/0e2774fd-4870-4259-9ee5-12798981d0be/1080p/video.m3u8"
+        }
+      ],
+      "note": "Báo cáo dự án xác nhận cần Referer cho HLS; Safari PWA không thể đặt HTTP headers playlist/segment. Nếu 403 phải dùng native iOS với request hợp lệ."
+    },
+    {
+      "id": "ikisoda",
+      "label": "IkiSoda · BAZX-390",
+      "type": "resolve-needed",
+      "page": "https://ikisoda.com/",
+      "streams": [],
+      "note": "Repo có signed MP4 cũ nhưng token thời hạn đã hết. Resolver hiện tại cần tải lại trang, lấy get_file rồi redirect để nhận URL mới; Safari PWA bị CORS/cookie. Không gắn URL hết hạn để báo giả là phát được."
+    }
+  ]
+}
