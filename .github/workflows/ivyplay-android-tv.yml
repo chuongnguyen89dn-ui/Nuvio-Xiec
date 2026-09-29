@@ -1,0 +1,43 @@
+name: IvyPlay Android TV
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ivyplay-android-tv]
+    paths:
+      - 'androidApp/**'
+      - 'composeApp/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'settings.gradle.kts'
+      - 'build.gradle.kts'
+      - '.github/workflows/ivyplay-android-tv.yml'
+
+jobs:
+  build-tv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build optimized ARM64 TV APK
+        run: ./gradlew :androidApp:assembleFullRelease -PreleaseMinifyEnabled=true
+      - name: Stage ARM64 APK
+        shell: bash
+        run: |
+          set -e
+          APK="$(find androidApp/build/outputs/apk/full/release -type f -name '*arm64-v8a*.apk' | head -1)"
+          test -n "$APK"
+          cp "$APK" IvyPlay-AndroidTV-arm64-v8a.apk
+          sha256sum IvyPlay-AndroidTV-arm64-v8a.apk > IvyPlay-AndroidTV-arm64-v8a.apk.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IvyPlay-AndroidTV-arm64-v8a
+          path: |
+            IvyPlay-AndroidTV-arm64-v8a.apk
+            IvyPlay-AndroidTV-arm64-v8a.apk.sha256
+          retention-days: 14
