@@ -18,16 +18,26 @@ function tile(m,a){let d=document.createElement('div');d.className='tile';let im
 async function loadCatalog(){let grid=$('catalog');grid.replaceChildren();for(let a of addons){for(let c of (a.manifest.catalogs||[]).slice(0,3)){try{let r=await get(endpoint(a,'catalog/'+c.type,c.id));(r.metas||[]).slice(0,30).forEach(m=>grid.append(tile(m,a)))}catch(e){let p=document.createElement('p');p.className='muted';p.textContent=a.name+': '+e.message;grid.append(p)}}}}
 async function openMovie(m,a){selected={m,a};tab('player');$('movieTitle').textContent=m.name||m.id;$('streams').replaceChildren();status('Đang lấy nguồn phát...');try{let meta=await get(endpoint(a,'meta/'+m.type,m.id));let videos=meta.meta?.videos||[];let mainId=meta.meta?.behaviorHints?.defaultVideoId||m.id;let ids=[{id:mainId,name:'▶ Phim chính'}];for(let v of videos){if(v.id===mainId||/:image:\d+$/.test(v.id))continue;ids.push({id:v.id,name:v.title||v.id})}for(let v of ids){let b=document.createElement('button');b.textContent=v.name;b.style.margin='5px';b.onclick=()=>loadStreams(a,m.type,v.id);$('streams').append(b)}status('Ưu tiên phim chính; trailer nằm riêng. Chọn nguồn để thử phát.')}catch(e){status('Lỗi metadata: '+e.message)}}
 async function loadStreams(a,type,id){status('Đang lấy streams...');try{let r=await get(endpoint(a,'stream/'+type,id));$('streams').replaceChildren();for(let s of r.streams||[]){let b=document.createElement('button');b.textContent=s.title||s.name||'Nguồn phát';b.style.margin='5px';b.onclick=()=>{if(!s.url){status('Nguồn này không có URL trực tiếp. Player web chưa hỗ trợ torrent/externalUrl.');return}play(s.url)};$('streams').append(b)}status((r.streams||[]).length?'Chọn nguồn phát':'Không có nguồn phát')}catch(e){status('Không tải được stream: '+e.message)}}
-function play(url){if(!url||!url.startsWith('https://')){status('Chỉ hỗ trợ video URL HTTPS trực tiếp');return}let v=$('video');v.pause();v.src=url;v.load();v.play().then(()=>status('Đang phát')).catch(e=>status('Không phát được: '+e.message+' — kiểm tra URL, codec, quyền truy cập và CORS'))}
+function play(url){if(!url||!url.startsWith('https://')){diagnose('URL video không hợp lệ');return}let v=$('video');v.pause();v.removeAttribute('src');v.load();v.src=url;v.load();v.play().catch(e=>diagnose('play(): '+e.name+' — '+e.message+'; Safari có thể bị chặn header, URL hoặc định dạng'))}
 $('sample').onclick=()=>{tab('player');$('movieTitle').textContent='HLS mẫu';$('streams').replaceChildren();play(SAMPLE)};$('back').onclick=()=>tab('home');$('find').onclick=async()=>{let q=$('query').value.trim();if(!q)return;let out=$('results');out.replaceChildren();for(let a of addons){for(let c of (a.manifest.catalogs||[]).filter(c=>(c.extra||[]).some(x=>x.name==='search')).slice(0,2)){try{let r=await get(endpoint(a,'catalog/'+c.type,c.id+'/search='+encodeURIComponent(q)));(r.metas||[]).forEach(m=>out.append(tile(m,a)))}catch(e){let p=document.createElement('p');p.textContent=e.message;out.append(p)}}}};
 
-// Four isolated diagnostic fixtures: direct URLs never traverse a NovaPlay server.
-const fixtures=[
- {name:'XemXiec · PGD-932 trailer',kind:'direct',url:'https://media.javtrailers.com/litevideo/freepv/p/pgd/pgd00932/pgd00932_dmb_w.mp4',note:'MP4 trailer dự phòng được ghi trong repo XemXiec; không phải nguồn #1/#2 chính.'},
- {name:'PhimHD · trang tham chiếu',kind:'page',url:'https://rophim.loan/phim/hanh-trinh-den-hanh-tinh-chet',note:'Trang phim gốc. Chưa có URL phát trực tiếp được xác minh. Đây KHÔNG phải nút thử phát.'},
- {name:'MissAV · FTHTD-219',kind:'direct',url:'https://surrit.com/0e2774fd-4870-4259-9ee5-12798981d0be/1080p/video.m3u8',note:'HLS 1080p trong catalog; Safari không đặt được Referer tuỳ ý. Nguồn có thể trả HTTP 403; không phải lỗi codec.'}
- ,{name:'IkiSoda · dữ liệu tham chiếu',kind:'page',url:'https://raw.githubusercontent.com/chuongnguyen89dn-ui/missav/main/data/ikisoda-catalog.json',note:'Dữ liệu có URL MP4 ký thời hạn. URL MP4 có token hết hạn; đây KHÔNG phải nút phát.'}
-];
-function renderFixtures(){let host=$('testcases');host.replaceChildren();for(let f of fixtures){let el=document.createElement('div');el.className='panel';let h=document.createElement('h3');h.textContent=f.name;let p=document.createElement('p');p.className='muted';p.textContent=f.note;let b=document.createElement('button');b.textContent=f.kind==='direct'?'▶ Thử phát trực tiếp':'Mở nguồn tham chiếu';b.onclick=()=>{if(f.kind==='direct'){tab('player');$('movieTitle').textContent=f.name;$('streams').replaceChildren();play(f.url)}else window.open(f.url,'_blank','noopener')};el.append(h,p,b);host.append(el)}}renderFixtures();
-$('video').addEventListener('error',()=>status('Video lỗi: '+($('video').error?.message||'nguồn không tương thích')));loadCatalog();
+
+const report=[];function diagnose(message){report.push(new Date().toLocaleTimeString('vi-VN')+' '+message);if(report.length>30)report.shift();status(report.join('\n'))}
+async function renderFixtures(){const host=$('testcases');host.textContent='Đang tải dữ liệu thử nghiệm từ GitHub Pages...';try{
+  const res=await fetch('./source-fixtures.json',{cache:'no-store'});if(!res.ok)throw Error('HTTP '+res.status);
+  const data=await res.json();host.replaceChildren();
+  for(const f of data.sources){let el=document.createElement('div');el.className='panel';let title=document.createElement('h3');title.textContent=f.label;el.append(title);
+    let p=document.createElement('p');p.className='muted';p.textContent=f.note;el.append(p);
+    for(const stream of f.streams){let btn=document.createElement('button');btn.textContent='▶ '+stream.name;btn.style.margin='4px';btn.onclick=()=>{tab('player');$('movieTitle').textContent=f.label+' · '+stream.name;$('streams').replaceChildren();report.length=0;diagnose('Nguồn: '+new URL(stream.url).hostname);diagnose('Loại: '+(stream.url.match(/\\.m3u8(?:[?#]|$)/i)?'HLS':stream.url.match(/\\.mp4(?:[?#]|$)/i)?'MP4':'URL không có đuôi video chuẩn'));play(stream.url)};el.append(btn)}
+    let source=document.createElement('button');source.textContent='↗ Trang nguồn';source.style.margin='4px';source.onclick=()=>window.open(f.page,'_blank','noopener');el.append(source);
+    host.append(el)
+  }
+ }catch(e){host.textContent='Lỗi dữ liệu thử nghiệm: '+e.message}
+}renderFixtures();
+$('video').addEventListener('loadstart',()=>diagnose('Video: bắt đầu tải'));
+$('video').addEventListener('loadedmetadata',()=>diagnose('Video: nhận metadata'));
+$('video').addEventListener('playing',()=>diagnose('Video: đang phát'));
+$('video').addEventListener('waiting',()=>diagnose('Video: đang chờ dữ liệu'));
+$('video').addEventListener('stalled',()=>diagnose('Video: kết nối bị gián đoạn'));
+$('video').addEventListener('error',()=>diagnose('MediaError '+($('video').error?.code||'?')+': '+($('video').error?.message||'không xác định')+'; cần kiểm tra network/status nguồn'));loadCatalog();
 </script><script src="source-adapters.js?v=2"></script></body></html>
