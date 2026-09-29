@@ -30,4 +30,4 @@ const fixtures=[
 ];
 function renderFixtures(){let host=$('testcases');host.replaceChildren();for(let f of fixtures){let el=document.createElement('div');el.className='panel';let h=document.createElement('h3');h.textContent=f.name;let p=document.createElement('p');p.className='muted';p.textContent=f.note;let b=document.createElement('button');b.textContent=f.kind==='direct'?'▶ Thử phát trực tiếp':'Mở nguồn tham chiếu';b.onclick=()=>{if(f.kind==='direct'){tab('player');$('movieTitle').textContent=f.name;$('streams').replaceChildren();play(f.url)}else window.open(f.url,'_blank','noopener')};el.append(h,p,b);host.append(el)}}renderFixtures();
 $('video').addEventListener('error',()=>status('Video lỗi: '+($('video').error?.message||'nguồn không tương thích')));loadCatalog();
-</script></body></html>
+</script><script src="source-adapters.js?v=2"></script></body></html>
