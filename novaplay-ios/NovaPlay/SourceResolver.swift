@@ -121,7 +121,7 @@ final class SourceResolver {
                 throw SourceError.missing("IkiSoda page unavailable; check status in device log")
             }
             let decoded = html.replacingOccurrences(of: "\\/", with: "/").replacingOccurrences(of: "&amp;", with: "&")
-            let regex = try NSRegularExpression(pattern: #"https?://ikisoda\\.com/get_file/[^"'<>\\s]+?22675_1080p\\.mp4/?(?:\\?[^"'<>\\s]*)?"#, options: [.caseInsensitive])
+            let regex = try NSRegularExpression(pattern: #"https?://ikisoda\.com/get_file/[^"'<>\s]+?22675_1080p\.mp4/?(?:\?[^"'<>\s]*)?"#, options: [.caseInsensitive])
             let range = NSRange(decoded.startIndex..<decoded.endIndex, in: decoded)
             guard let match = regex.firstMatch(in: decoded, range: range),
                   let matchRange = Range(match.range, in: decoded),
