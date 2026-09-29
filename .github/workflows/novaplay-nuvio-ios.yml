@@ -27,8 +27,14 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Prepare optional local properties for Gradle 9
-        run: touch local.properties
+      - name: Configure IvyPlay Nuvio Cloud account sync
+        shell: bash
+        run: |
+          cat > local.properties <<'EOF'
+          NUVIO_SUPABASE_URL=https://api.nuvio.tv
+          NUVIO_SUPABASE_ANON_KEY=sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN
+          NUVIO_SUPABASE_FALLBACK_URL=
+          EOF
       - name: Fetch original Nuvio player dependency
         run: |
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
