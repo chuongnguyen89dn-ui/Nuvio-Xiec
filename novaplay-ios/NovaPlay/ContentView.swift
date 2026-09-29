@@ -245,8 +245,12 @@ struct ContentView: View {
                 Text("Phim đã lưu").font(.title3.bold())
                 let items = films.filter { favorites.contains($0.id) }
                 if items.isEmpty {
-                    ContentUnavailableView("Chưa có phim yêu thích", systemImage: "bookmark",
-                                           description: Text("Mở chi tiết phim và nhấn Lưu để thêm vào thư viện."))
+                    VStack(spacing: 12) {
+                        Image(systemName: "bookmark").font(.largeTitle)
+                        Text("Chưa có phim yêu thích").font(.headline)
+                        Text("Mở chi tiết phim và nhấn Lưu để thêm vào thư viện.")
+                            .font(.subheadline).foregroundStyle(NovaStyle.muted)
+                    }.frame(maxWidth: .infinity).padding(35)
                 } else {
                     ForEach(items) { film in
                         Button { chosenFilm = film } label: { filmRow(film) }.buttonStyle(.plain)
