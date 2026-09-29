@@ -3,6 +3,7 @@ package com.nuvio.app
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -70,6 +71,9 @@ import com.nuvio.app.features.watchprogress.WatchProgressStorage
 
 open class MainActivity : AppCompatActivity() {
     private var pipRemoteActionReceiver: PipRemoteActionReceiver? = null
+    private val isTelevision: Boolean by lazy(LazyThreadSafetyMode.NONE) {
+        packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -81,10 +85,13 @@ open class MainActivity : AppCompatActivity() {
         ThemeSettingsStorage.initialize(applicationContext)
         AppIconPlatform.initialize(applicationContext)
         SentrySettingsStorage.initialize(applicationContext)
-        SentryInitializer.start(application)
+        // TV boxes are commonly RAM/CPU constrained. Diagnostics must never slow cold start.
+        if (!isTelevision) SentryInitializer.start(application)
         super.onCreate(savedInstanceState)
         window.setBackgroundDrawableResource(R.color.nuvio_background)
-        pipRemoteActionReceiver = PipRemoteActionReceiver.register(this)
+        if (!isTelevision) {
+            pipRemoteActionReceiver = PipRemoteActionReceiver.register(this)
+        }
         SyncClientIdentityStorage.initialize(applicationContext)
         AddonHttpClientProvider.initialize(applicationContext)
         AddonStorage.initialize(applicationContext)
@@ -97,7 +104,9 @@ open class MainActivity : AppCompatActivity() {
         PlayerSettingsStorage.initialize(applicationContext)
         PlayerTrackPreferenceStorage.initialize(applicationContext)
         P2pSettingsStorage.initialize(applicationContext)
-        P2pStreamingEngine.initialize(applicationContext)
+        // P2P engine is intentionally not started eagerly on TV. Its settings remain available;
+        // the streaming feature can initialize the engine when actually selected.
+        if (!isTelevision) P2pStreamingEngine.initialize(applicationContext)
         ExternalPlayerPlatform.initialize(applicationContext)
         SubtitleFileCache.initialize(applicationContext)
         ProfileStorage.initialize(applicationContext)
@@ -135,8 +144,12 @@ open class MainActivity : AppCompatActivity() {
         DownloadsLiveStatusPlatform.initialize(applicationContext)
         AndroidAppUpdaterPlatform.initialize(applicationContext)
         PlatformLocalAccountDataCleaner.initialize(applicationContext)
-        EpisodeReleaseNotificationPlatform.initialize(applicationContext)
-        EpisodeReleaseNotificationPlatform.bindActivity(this)
+        // Background episode workers/permission hooks are mobile conveniences. Avoid their
+        // startup cost on low-memory TV boxes; browsing/playback stays foreground-driven.
+        if (!isTelevision) {
+            EpisodeReleaseNotificationPlatform.initialize(applicationContext)
+            EpisodeReleaseNotificationPlatform.bindActivity(this)
+        }
         handleIncomingAppIntent(intent)
 
         setContent {
@@ -164,7 +177,7 @@ open class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        EpisodeReleaseNotificationPlatform.unbindActivity(this)
+        if (!isTelevision) EpisodeReleaseNotificationPlatform.unbindActivity(this)
         val receiver = pipRemoteActionReceiver
         if (receiver != null) {
             runCatching { unregisterReceiver(receiver) }
