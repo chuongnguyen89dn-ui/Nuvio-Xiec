@@ -3,6 +3,8 @@ name: NovaPlay original Nuvio iOS
 on:
   workflow_dispatch:
   push:
+    tags:
+      - 'ivyplay-ios-v*'
     paths:
       - 'composeApp/**'
       - 'iosApp/**'
@@ -13,6 +15,8 @@ permissions:
 
 jobs:
   original-nuvio:
+    permissions:
+      contents: write
     runs-on: macos-15
     timeout-minutes: 120
     env:
@@ -98,3 +102,16 @@ jobs:
           name: NovaPlay-Nuvio-original-iPhone-unsigned
           path: NovaPlay-Nuvio-original-unsigned.ipa
           retention-days: 7
+      - name: Stage IvyPlay IPA for versioned releases
+        if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
+        run: |
+          cp NovaPlay-Nuvio-original-unsigned.ipa IvyPlay-unsigned.ipa
+          shasum -a 256 IvyPlay-unsigned.ipa > IvyPlay-unsigned.ipa.sha256
+      - name: Publish IvyPlay iOS release
+        if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 \
+            --title "IvyPlay iOS ${GITHUB_REF_NAME}" --generate-notes --verify-tag
+
