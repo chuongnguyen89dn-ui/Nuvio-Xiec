@@ -37,6 +37,14 @@ private let films: [Film] = [
     private var proxy: LocalHLSProxy?
     private var generation = 0
 
+    func prepare(_ title: String) {
+        generation += 1
+        options = []
+        currentTitle = title
+        isLoading = false
+        status = "Giao diện sẵn sàng. Nhập URL video do chúng ta cung cấp để phát."
+    }
+
     func lookup(_ id: String, title: String) {
         generation += 1
         let token = generation
@@ -70,7 +78,7 @@ private let films: [Film] = [
         proxy = nil
         currentTitle = target.title
         isLoading = true
-        status = "Đang chuẩn bị phát…"
+        status = "Đang chuẩn bị player…"
         Task {
             do {
                 let local = LocalHLSProxy()
@@ -340,7 +348,7 @@ struct ContentView: View {
                     }
                     Text("Nội dung").font(.headline)
                     Text(film.synopsis).foregroundStyle(NovaStyle.muted)
-                    Text("Nguồn phát sẽ được chọn trong player. Giao diện không phụ thuộc vào link video.")
+                    Text("Player nhận URL video riêng; giao diện không phụ thuộc resolver hoặc nguồn cụ thể.")
                         .font(.footnote).foregroundStyle(NovaStyle.muted)
                 }.padding(18)
             }.background(NovaStyle.background.ignoresSafeArea())
@@ -357,7 +365,7 @@ struct ContentView: View {
         savedIDs = ids.sorted().joined(separator: "|")
     }
     private func openFilm(_ film: Film) {
-        model.lookup(film.id, title: film.title)
+        model.prepare(film.title)
         showingPlayer = true
     }
 
