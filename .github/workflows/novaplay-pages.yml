@@ -21,6 +21,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check source JavaScript syntax
+        run: node --check novaplay-pwa/source-adapters.js
       - uses: actions/configure-pages@v5
         with:
           enablement: true
