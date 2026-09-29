@@ -1,0 +1,38 @@
+name: NovaPlay iPhone unsigned build
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'novaplay-ios/**'
+      - '.github/workflows/novaplay-ios.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate project
+        working-directory: novaplay-ios
+        run: xcodegen generate
+      - name: Compile iPhone app (unsigned)
+        working-directory: novaplay-ios
+        run: |
+          xcodebuild -project NovaPlay.xcodeproj -scheme NovaPlay -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee build.log
+          test ${PIPESTATUS[0]} -eq 0
+      - name: Package unsigned IPA
+        working-directory: novaplay-ios
+        run: |
+          test -d build/Build/Products/Release-iphoneos/NovaPlay.app
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/NovaPlay.app Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload NovaPlay-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NovaPlay-iPhone-unsigned
+          path: novaplay-ios/NovaPlay-unsigned.ipa
+          retention-days: 7
