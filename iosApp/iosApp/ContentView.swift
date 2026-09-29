@@ -125,9 +125,11 @@ final class RootComposeViewController: UIViewController {
     }
 
     private func configureBackGestures(isVisible: Bool) {
+#if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = false
         }
+#endif
         navigationController?.interactivePopGestureRecognizer?.isEnabled =
             isVisible ? !disablesInteractiveContentPopGesture : true
     }
@@ -919,11 +921,9 @@ private struct DetailDestinationView: View {
 
     @ViewBuilder
     var body: some View {
-        if #available(iOS 26.0, *), !usesComposeNavigationHeader {
-            content.navigationSubtitle(wrapper.route.subtitle ?? "")
-        } else {
-            content
-        }
+        // iOS does not expose SwiftUI.navigationSubtitle; the Compose header
+        // already renders the subtitle where applicable.
+        content
     }
 }
 
@@ -1337,7 +1337,9 @@ struct NativeNavContentView: View {
             }
         }
         .tint(Color(uiColor: iconStore.accentColor))
+#if compiler(>=6.2)
         .tabBarMinimizeBehavior(.automatic)
+#endif
     }
 
     @ViewBuilder
