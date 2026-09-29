@@ -1,0 +1,18 @@
+name: NovaPlay
+options:
+  bundleIdPrefix: com.novaplay
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  NovaPlay:
+    type: application
+    platform: iOS
+    sources:
+      - NovaPlay
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.novaplay.iphone
+        SWIFT_VERSION: "5.0"
+        INFOPLIST_FILE: NovaPlay/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGNING_ALLOWED: "NO"
