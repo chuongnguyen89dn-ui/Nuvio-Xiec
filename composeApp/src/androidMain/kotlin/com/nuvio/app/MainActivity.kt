@@ -60,6 +60,8 @@ import com.nuvio.app.features.tmdb.TmdbSettingsStorage
 import com.nuvio.app.features.updater.AndroidAppUpdaterPlatform
 import com.nuvio.app.core.ui.CardDepthStyleStorage
 import com.nuvio.app.core.ui.PosterCardStyleStorage
+import com.nuvio.app.core.ui.isIvyPlayTv
+import com.nuvio.app.core.ui.isIvyPlayLowRamDevice
 import com.nuvio.app.features.watched.WatchedStorage
 import com.nuvio.app.features.streams.StreamLinkCacheStorage
 import com.nuvio.app.features.streams.StreamBadgeSettingsStorage
@@ -140,8 +142,10 @@ open class MainActivity : AppCompatActivity() {
         CollectionMobileSettingsStorage.initialize(applicationContext)
         CollectionStorage.initialize(applicationContext)
         DownloadsStorage.initialize(applicationContext)
-        DownloadsPlatformDownloader.initialize(applicationContext)
-        DownloadsLiveStatusPlatform.initialize(applicationContext)
+        if (!lowRamTv) {
+            DownloadsPlatformDownloader.initialize(applicationContext)
+            DownloadsLiveStatusPlatform.initialize(applicationContext)
+        }
         AndroidAppUpdaterPlatform.initialize(applicationContext)
         PlatformLocalAccountDataCleaner.initialize(applicationContext)
         // Background episode workers/permission hooks are mobile conveniences. Avoid their
