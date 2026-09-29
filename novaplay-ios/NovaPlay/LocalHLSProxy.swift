@@ -81,7 +81,7 @@ final class LocalHLSProxy {
             }
             let pieces = requestLine.split(separator: " ")
             guard pieces.count >= 2, pieces[0] == "GET",
-                  let path = String(pieces[1]).addingPercentEncoding(withAllowedCharacters: .urlFragmentAllowed),
+                  let path = Optional(String(pieces[1])),
                   let url = URLComponents(string: "http://localhost" + path),
                   let remoteString = url.queryItems?.first(where: { $0.name == "u" })?.value,
                   let remote = URL(string: remoteString),
