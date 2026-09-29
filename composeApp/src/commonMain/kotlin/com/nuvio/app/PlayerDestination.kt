@@ -12,6 +12,8 @@ import com.nuvio.app.features.player.ExternalPlayerPlatform
 import com.nuvio.app.features.player.PlayerLaunch
 import com.nuvio.app.features.player.PlayerLaunchStore
 import com.nuvio.app.features.player.PlayerScreen
+import com.nuvio.app.features.player.NovaPlayVideoRequest
+import com.nuvio.app.features.player.NovaPlayVideoRouter
 import com.nuvio.app.features.watchprogress.ResumePromptRepository
 import com.nuvio.app.navigation.NuvioNavigator
 import com.nuvio.app.navigation.PlayerRoute
@@ -39,13 +41,30 @@ internal fun PlayerDestination(
     LaunchedEffect(launch.videoId) {
         launch.videoId?.let { ResumePromptRepository.markPlayerEntered(it) }
     }
+    val videoRequest = remember(
+        launch.sourceUrl,
+        launch.sourceAudioUrl,
+        launch.sourceHeaders,
+        launch.sourceResponseHeaders,
+        launch.streamType,
+    ) {
+        NovaPlayVideoRouter.route(
+            NovaPlayVideoRequest(
+                url = launch.sourceUrl,
+                audioUrl = launch.sourceAudioUrl,
+                requestHeaders = launch.sourceHeaders,
+                responseHeaders = launch.sourceResponseHeaders,
+                streamType = launch.streamType,
+            )
+        )
+    }
     PlayerScreen(
         profileId = launch.profileId,
         title = launch.title,
-        sourceUrl = launch.sourceUrl,
-        sourceAudioUrl = launch.sourceAudioUrl,
-        sourceHeaders = launch.sourceHeaders,
-        sourceResponseHeaders = launch.sourceResponseHeaders,
+        sourceUrl = videoRequest.url,
+        sourceAudioUrl = videoRequest.audioUrl,
+        sourceHeaders = videoRequest.requestHeaders,
+        sourceResponseHeaders = videoRequest.responseHeaders,
         externalSubtitles = launch.externalSubtitles,
         streamType = launch.streamType,
         logo = launch.logo,
