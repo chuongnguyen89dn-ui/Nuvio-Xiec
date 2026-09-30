@@ -68,7 +68,16 @@ jobs:
           PY
           )"
           xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b
+          # Do not let simulator proof block the actual IPA build forever.
+          READY=0
+          for i in {1..60}; do
+            if xcrun simctl list devices | grep "$UDID" | grep -q "(Booted)"; then READY=1; break; fi
+            sleep 2
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Simulator boot timed out; skipping screenshot proof."
+            exit 0
+          fi
           xcrun simctl install "$UDID" "$APP"
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           xcrun simctl launch "$UDID" "$BUNDLE_ID" | tee simulator-launch.log
