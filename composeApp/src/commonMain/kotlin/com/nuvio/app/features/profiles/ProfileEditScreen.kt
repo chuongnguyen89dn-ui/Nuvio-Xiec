@@ -78,6 +78,7 @@ fun ProfileEditScreen(
     var selectedBackgroundId by rememberSaveable { mutableStateOf(currentProfile?.profileBackgroundId) }
     var selectedBackgroundUrl by rememberSaveable { mutableStateOf(currentProfile?.profileBackgroundUrl) }
     var usesPrimaryAddons by rememberSaveable { mutableStateOf(currentProfile?.usesPrimaryAddons ?: false) }
+    var contentMode by rememberSaveable { mutableStateOf(currentProfile?.contentMode ?: IvyPlayContentMode.STANDARD) }
     var isSaving by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showPinSetup by remember { mutableStateOf(false) }
@@ -137,6 +138,33 @@ fun ProfileEditScreen(
                 accentColor = previewAccent,
                 hasAvatarChoices = avatars.isNotEmpty(),
             )
+        }
+
+        item {
+            NuvioSurfaceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Loại hồ sơ", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "YouTube dùng giao diện và nội dung riêng, không ảnh hưởng các hồ sơ IvyPlay khác.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { contentMode = IvyPlayContentMode.STANDARD },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (contentMode == IvyPlayContentMode.STANDARD) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) { Text("IvyPlay") }
+                        Button(
+                            onClick = { contentMode = IvyPlayContentMode.YOUTUBE },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (contentMode == IvyPlayContentMode.YOUTUBE) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        ) { Text("YouTube") }
+                    }
+                }
+            }
         }
 
         item {
@@ -290,6 +318,7 @@ fun ProfileEditScreen(
                                 avatarId = if (customAvatarUrl == null) selectedAvatarId else null,
                                 avatarUrl = customAvatarUrl,
                                 usesPrimaryAddons = usesPrimaryAddons,
+                                contentMode = contentMode,
                             )
                         } else {
                             ProfileRepository.updateProfile(
@@ -301,6 +330,7 @@ fun ProfileEditScreen(
                                 profileBackgroundId = selectedBackgroundId,
                                 profileBackgroundUrl = selectedBackgroundUrl,
                                 usesPrimaryAddons = usesPrimaryAddons,
+                                contentMode = contentMode,
                             )
                         }
                         isSaving = false
