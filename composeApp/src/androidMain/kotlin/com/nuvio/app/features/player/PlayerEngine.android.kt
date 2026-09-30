@@ -49,6 +49,8 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.TransferListener
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.ForwardingRenderer
@@ -354,6 +356,7 @@ private fun ExoPlayerSurface(
             .setEnableDecoderFallback(true)
             .setMapDV7ToHevc(playerSettings.mapDV7ToHevc)
 
+        val bandwidthMeter = DefaultBandwidthMeter.Builder(context).build()
         val trackSelector = DefaultTrackSelector(context).apply {
             var parameters = buildUponParameters()
                 .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true)
@@ -395,6 +398,7 @@ private fun ExoPlayerSurface(
         val player = if (useLibass) {
             ExoPlayer.Builder(context)
                 .setTrackSelector(trackSelector)
+                .setBandwidthMeter(bandwidthMeter)
                 .setLoadControl(loadControl)
                 .buildWithAssSupportCompat(
                     context = context,
@@ -412,11 +416,20 @@ private fun ExoPlayerSurface(
             ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory)
                 .setTrackSelector(trackSelector)
+                .setBandwidthMeter(bandwidthMeter)
                 .setLoadControl(loadControl)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .build()
         }
 
+        if (normalizedStreamType == "hls" || normalizedStreamType == "dash" || sourceUrl.substringBefore('?').endsWith(".m3u8", true) || sourceUrl.substringBefore('?').endsWith(".mpd", true)) {
+            Log.i(TAG, "AUTO_QUALITY_ENABLED source=${diagnosticPlaybackSource(sourceUrl)}")
+        }
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onBandwidthEstimate(eventTime: AnalyticsListener.EventTime, totalLoadTimeMs: Int, totalBytesLoaded: Long, bitrateEstimate: Long) {
+                Log.d(TAG, "BANDWIDTH_ESTIMATE bps=$bitrateEstimate")
+            }
+        })
         player.applySubtitleTrackPreferences(
             preferredLanguage = playerSettings.preferredSubtitleLanguage,
             useForcedSubtitles = playerSettings.subtitleStyle.useForcedSubtitles,
