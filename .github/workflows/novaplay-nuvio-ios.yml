@@ -46,6 +46,7 @@ jobs:
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
           test -f MPVKit/Package.swift
       - name: Build ORIGINAL Nuvio iPhone UI (simulator)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -o pipefail
@@ -54,6 +55,7 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/ios-simulator CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-simulator.log
       - name: Launch actual app and capture screenshot
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -86,7 +88,7 @@ jobs:
           xcrun simctl io "$UDID" screenshot build/nuvio-screenshots/original-nuvio-home.png
           xcrun simctl spawn "$UDID" log show --last 2m --style compact --predicate 'process == "Nuvio"' > build/nuvio-screenshots/runtime.log || true
       - name: Upload actual UI screenshot and diagnostic logs
-        if: always()
+        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v4
         with:
           name: NovaPlay-original-Nuvio-ui-proof
