@@ -92,6 +92,7 @@ fun ProfileEditScreen(
 
     val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
+        AvatarRepository.fetchAvatars()
         AvatarRepository.refreshAvatars()
     }
     LaunchedEffect(canChooseBackground) {
