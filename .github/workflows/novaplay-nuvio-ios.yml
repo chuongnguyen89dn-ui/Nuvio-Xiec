@@ -3,6 +3,8 @@ name: NovaPlay original Nuvio iOS
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'ivyplay-ios-v*'
     paths:
