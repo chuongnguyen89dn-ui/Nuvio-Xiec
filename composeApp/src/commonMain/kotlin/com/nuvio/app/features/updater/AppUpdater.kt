@@ -23,10 +23,10 @@ import kotlinx.coroutines.runBlocking
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 
-private const val gitHubOwner = "NuvioMedia"
-private const val gitHubRepo = "NuvioMobile"
+private const val gitHubOwner = "chuongnguyen89dn-ui"
+private const val gitHubRepo = "Nuvio-Xiec"
 private const val gitHubApiBase = "https://api.github.com"
-private const val releaseChannelBranch = "cmp-rewrite"
+private const val releaseChannelBranch = "main"
 
 data class AppUpdate(
     val tag: String,
@@ -124,7 +124,7 @@ private object AppUpdaterRepository {
             url = "$gitHubApiBase/repos/$gitHubOwner/$gitHubRepo/releases?per_page=20",
             headers = mapOf(
                 "Accept" to "application/vnd.github+json",
-                "User-Agent" to "NuvioMobile",
+                "User-Agent" to "IvyPlay",
             ),
             body = "",
         )
@@ -140,7 +140,7 @@ private object AppUpdaterRepository {
             ?: release.name?.takeIf { it.isNotBlank() }
             ?: error(getString(Res.string.updates_release_missing_title))
 
-        val asset = chooseBestApkAsset(release.assets)
+        val asset = chooseBestUpdateAsset(release.assets)
             ?: error(getString(Res.string.updates_apk_asset_missing))
 
         AppUpdate(
@@ -165,7 +165,10 @@ private object AppUpdaterRepository {
             .any { value -> value.contains(channel, ignoreCase = true) }
     }
 
-    private fun chooseBestApkAsset(assets: List<GitHubAssetDto>): GitHubAssetDto? {
+    private fun chooseBestUpdateAsset(assets: List<GitHubAssetDto>): GitHubAssetDto? {
+        if (AppUpdaterPlatform.getSupportedAbis().contains("ios")) {
+            return assets.firstOrNull { it.name.endsWith(".ipa", ignoreCase = true) }
+        }
         val apkAssets = assets.filter { asset ->
             asset.name.endsWith(".apk", ignoreCase = true) ||
                 asset.contentType == "application/vnd.android.package-archive"
