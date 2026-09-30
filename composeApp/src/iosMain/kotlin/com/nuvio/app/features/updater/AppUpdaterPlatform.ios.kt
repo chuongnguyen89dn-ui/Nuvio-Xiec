@@ -6,10 +6,10 @@ import nuvio.composeapp.generated.resources.updates_not_available
 import org.jetbrains.compose.resources.getString
 
 actual object AppUpdaterPlatform {
-    actual val isSupported: Boolean = false
+    actual val isSupported: Boolean = true
     actual val isDebugBuild: Boolean = false
 
-    actual fun getSupportedAbis(): List<String> = emptyList()
+    actual fun getSupportedAbis(): List<String> = listOf("ios")
 
     actual fun getIgnoredTag(): String? = null
 
