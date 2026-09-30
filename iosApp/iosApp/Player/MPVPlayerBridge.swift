@@ -708,7 +708,7 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func seekToMs(_ ms: Int64) {
-        if usingNativeAdaptivePlayback { adaptivePlayer?.seek(to: CMTime(milliseconds: ms)); return }
+        if usingNativeAdaptivePlayback { adaptivePlayer?.seek(to: CMTime(value: ms, timescale: 1000)); return }
         guard mpv != nil else { return }
         let seconds = Double(ms) / 1000.0
         command("seek", args: [String(format: "%.3f", seconds), "absolute"])
