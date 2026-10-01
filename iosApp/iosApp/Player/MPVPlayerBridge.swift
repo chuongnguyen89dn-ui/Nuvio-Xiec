@@ -102,7 +102,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         playerVC?.configureAudioOutput(audioOutput: audioOutput)
     }
     func setPlaybackSpeed(speed: Float) { playerVC?.setSpeed(speed) }
-    func setMuted(muted: Bool) { playerVC?.setMuted(muted) }
+    func setMuted(muted: Bool) { playerVC?.setMuted(muted) }\n    func getVideoQualityCount() -> Int32 { Int32(playerVC?.availableVideoQualityHeights.count ?? 0) }\n    func getVideoQualityHeight(at: Int32) -> Int32 {\n        guard let values = playerVC?.availableVideoQualityHeights, Int(at) >= 0, Int(at) < values.count else { return 0 }\n        return Int32(values[Int(at)])\n    }\n    func getSelectedVideoQualityHeight() -> Int32 { Int32(playerVC?.selectedVideoQualityHeight ?? 0) }\n    func selectVideoQuality(height: Int32) { playerVC?.selectVideoQuality(Int(height)) }
     func setResizeMode(mode: Int32) { playerVC?.setResize(Int(mode)) }
     func syncVideoSurfaceLayout(width: Double, height: Double) {
         playerVC?.syncVideoSurfaceLayout(size: CGSize(width: width, height: height))
@@ -277,7 +277,7 @@ final class MPVPlayerViewController: UIViewController {
     private var adaptivePlayer: AVPlayer?
     private var adaptivePlayerLayer: AVPlayerLayer?
     private var adaptiveTimeObserver: Any?
-    private var usingNativeAdaptivePlayback = false
+    private var usingNativeAdaptivePlayback = false\n    private(set) var availableVideoQualityHeights: [Int] = []\n    private(set) var selectedVideoQualityHeight: Int = 0
 
     // Cached track lists
     var audioTracks: [TrackInfo] = []
@@ -674,7 +674,7 @@ final class MPVPlayerViewController: UIViewController {
         player.play()
     }
 
-    private func clearNativeAdaptivePlayback() {
+    private func refreshAdaptiveVideoQualities(asset: AVAsset) {\n        if #available(iOS 15.0, *) {\n            Task { [weak self] in\n                do {\n                    let variants = try await asset.load(.variants)\n                    let heights = variants.compactMap { variant -> Int? in\n                        guard let size = variant.videoAttributes?.presentationSize, size.height > 0 else { return nil }\n                        return Int(size.height.rounded())\n                    }\n                    let normalized = Array(Set(heights)).sorted(by: >)\n                    await MainActor.run {\n                        self?.availableVideoQualityHeights = normalized\n                        print(\"[IvyPlayQuality] AVAILABLE_QUALITIES heights=\\(normalized)\")\n                    }\n                } catch {\n                    print(\"[IvyPlayQuality] QUALITY_DISCOVERY_FAILED error=\\(error.localizedDescription)\")\n                }\n            }\n        }\n    }\n\n    func selectVideoQuality(_ height: Int) {\n        guard usingNativeAdaptivePlayback, let item = adaptivePlayer?.currentItem else { return }\n        selectedVideoQualityHeight = max(0, height)\n        if height <= 0 {\n            item.preferredPeakBitRate = 0\n            item.preferredMaximumResolution = .zero\n            print(\"[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=Auto\")\n        } else {\n            item.preferredPeakBitRate = 0\n            item.preferredMaximumResolution = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat(height))\n            print(\"[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=\\(height)p\")\n        }\n    }\n\n    private func clearNativeAdaptivePlayback() {
         if let observer = adaptiveTimeObserver, let player = adaptivePlayer {
             player.removeTimeObserver(observer)
         }
