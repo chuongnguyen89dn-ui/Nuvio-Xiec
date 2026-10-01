@@ -450,6 +450,17 @@ private fun BoxScope.RenderPlaybackOverlays(
 
 @Composable
 private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
+    YouTubeQualityModal(
+        visible = showYouTubeQualityModal && isYouTubePlayback(),
+        qualities = videoQualities,
+        onSelect = { height ->
+            playerController?.selectVideoQuality(height)
+            videoQualities = playerController?.getVideoQualities().orEmpty()
+            showYouTubeQualityModal = false
+            controlsVisible = true
+        },
+        onDismiss = { showYouTubeQualityModal = false },
+    )
     PlayerScreenModalHosts(
         pendingP2pSwitch = pendingP2pSwitch,
         onPendingP2pSwitchChanged = { pendingP2pSwitch = it },
