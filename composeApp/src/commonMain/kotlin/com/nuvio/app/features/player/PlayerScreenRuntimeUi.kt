@@ -287,6 +287,14 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 refreshTracks()
                 showAudioModal = true
             },
+            onQualityClick = if (isYouTubePlayback()) {
+                {
+                    videoQualities = playerController?.getVideoQualities().orEmpty()
+                    showYouTubeQualityModal = true
+                    controlsVisible = true
+                }
+            } else null,
+            qualityLabel = videoQualities.firstOrNull { it.isSelected }?.label ?: "Auto",
             onVideoSettingsClick = if (isIos) {
                 {
                     showVideoSettingsModal = true
