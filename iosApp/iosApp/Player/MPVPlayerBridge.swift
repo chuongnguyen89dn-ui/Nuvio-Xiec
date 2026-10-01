@@ -1423,7 +1423,7 @@ final class MPVPlayerViewController: UIViewController {
             .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
             .map { key, value in
                 let escapedValue = value
-                    .replacingOccurrences(of: "\", with: "\\\")
+                    .replacingOccurrences(of: "\\", with: "\\\\")
                     .replacingOccurrences(of: ",", with: "\\,")
                 return "\(key): \(escapedValue)"
             }
