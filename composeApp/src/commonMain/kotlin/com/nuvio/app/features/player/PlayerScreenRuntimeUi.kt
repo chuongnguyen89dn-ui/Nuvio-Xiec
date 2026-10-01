@@ -234,7 +234,14 @@ private fun p2pConnectingPhaseLabel(phase: String): String = when (phase) {
     )
 }
 
-private fun PlayerScreenRuntime.isYouTubePlayback(): Boolean =\n    activeVideoId?.startsWith(\"khoai_\", ignoreCase = true) == true ||\n        activeProviderAddonId?.contains(\"youtube\", ignoreCase = true) == true ||\n        activeProviderName.contains(\"youtube\", ignoreCase = true) ||\n        activeSourceUrl.contains(\"youtube.com\", ignoreCase = true) ||\n        activeSourceUrl.contains(\"youtu.be\", ignoreCase = true)\n\nprivate fun PlayerScreenRuntime.currentInitialPositionRequestKey(): String? {
+private fun PlayerScreenRuntime.isYouTubePlayback(): Boolean =
+    activeVideoId?.startsWith(\"khoai_\", ignoreCase = true) == true ||
+        activeProviderAddonId?.contains(\"youtube\", ignoreCase = true) == true ||
+        activeProviderName.contains(\"youtube\", ignoreCase = true) ||
+        activeSourceUrl.contains(\"youtube.com\", ignoreCase = true) ||
+        activeSourceUrl.contains(\"youtu.be\", ignoreCase = true)
+
+private fun PlayerScreenRuntime.currentInitialPositionRequestKey(): String? {
     val positionMs = activeInitialPositionMs.takeIf { it > 0L } ?: return null
     return "$activePlaybackIdentity:${activeVideoId.orEmpty()}:$positionMs"
 }
