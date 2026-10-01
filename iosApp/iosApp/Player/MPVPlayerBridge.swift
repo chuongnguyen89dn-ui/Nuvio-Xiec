@@ -695,10 +695,10 @@ final class MPVPlayerViewController: UIViewController {
                     let normalized = Array(Set(heights)).sorted(by: >)
                     await MainActor.run {
                         self?.availableVideoQualityHeights = normalized
-                        print(\"[IvyPlayQuality] AVAILABLE_QUALITIES heights=\\(normalized)\")
+                        print("[IvyPlayQuality] AVAILABLE_QUALITIES heights=\\(normalized)")
                     }
                 } catch {
-                    print(\"[IvyPlayQuality] QUALITY_DISCOVERY_FAILED error=\\(error.localizedDescription)\")
+                    print("[IvyPlayQuality] QUALITY_DISCOVERY_FAILED error=\\(error.localizedDescription)")
                 }
             }
         }
@@ -710,11 +710,11 @@ final class MPVPlayerViewController: UIViewController {
         if height <= 0 {
             item.preferredPeakBitRate = 0
             item.preferredMaximumResolution = .zero
-            print(\"[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=Auto\")
+            print("[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=Auto")
         } else {
             item.preferredPeakBitRate = 0
             item.preferredMaximumResolution = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat(height))
-            print(\"[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=\\(height)p\")
+            print("[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=\\(height)p")
         }
     }
 
@@ -1253,8 +1253,7 @@ final class MPVPlayerViewController: UIViewController {
         if !trimmedFallback.isEmpty && !parts.contains(trimmedFallback) {
             parts.append(trimmedFallback)
         }
-        _currentErrorMessage = parts.isEmpty ? "Unable to play this stream." : parts.joined(separator: "
-")
+        _currentErrorMessage = parts.isEmpty ? "Unable to play this stream." : parts.joined(separator: "\n")
         errorStateLock.unlock()
     }
 
@@ -1419,7 +1418,7 @@ final class MPVPlayerViewController: UIViewController {
             .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
             .map { key, value in
                 let escapedValue = value
-                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "\", with: "\\\")
                     .replacingOccurrences(of: ",", with: "\\,")
                 return "\(key): \(escapedValue)"
             }
