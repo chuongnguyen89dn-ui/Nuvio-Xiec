@@ -91,7 +91,7 @@ internal fun PlayerControlsShell(
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
     onQualityClick: (() -> Unit)? = null,
-    qualityLabel: String = \"Auto\",
+    qualityLabel: String = "Auto",
     onVideoSettingsClick: (() -> Unit)? = null,
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
