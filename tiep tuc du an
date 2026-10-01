@@ -14,3 +14,77 @@ Muc tieu:
 - Xac dinh Nuvio native cast click yeu cau MetaPerson.tmdbId > 0.
 - Addon MetaDetailsParser chi parse cast name/character/photo, khong nhan custom tmdbId tu addon.
 - Xiec backend da co actor index/filter/filmography; client se fallback sang duong nay khi khong co TMDB id.
+
+
+2026-09-29 -> 2026-10-01 — YOUTUBE / QUALITY / PROFILE / IPHONE-TV HANDOFF
+
+YEU CAU DA CHOT
+- Xay dung he thong YouTube goc cho Ivy, chay song song mobile Android, Android TV va iPhone/iOS.
+- YouTube phai co profile rieng trong muc Tao ho so, co logo YouTube de nguoi dung nhan biet day la profile YouTube.
+- Profile YouTube co Home/layout rieng, muc tieu render bo cuc theo cau truc channel that thay vi chi hien danh sach video chung.
+- Khong bat buoc nguoi dung phai tu biet schema addon; backend/Ivy phai tu nhan dien va normalize du lieu.
+- Kien truc da chot: YouTube Channel Resolver. Resolver lay cau truc channel that -> normalize -> Ivy chi render lai.
+- Repo addon/resolver: chuongnguyen89dn-ui/Toolchecklink/youtube-khoai-service/.
+- server.js phuc vu manifest.json, /catalog/..., /meta/..., /stream/....
+- catalog.json hien co 254 video Khoai Lang Thang.
+- Snapshot resolver: youtube-khoai-service/snapshots/khoai-channel-resolver.json.
+- Channel: channelId UCZE88kYvCKUKjM-G0uc8Duw, handle @khoailangthang, name Khoai Lang Thang, kem 254 video.
+- Commit resolver tham chieu: ec360fcd6ad1e76aab1d233dbba1f8d45fb911e1.
+- Snapshot mong muon: snapshots/manifest.json va snapshots/catalog-response.json; catalog-response phai phan anh response Render LIVE.
+- Muc tieu UI: YouTube trong Ivy rat sat YouTube goc ve bo cuc, nhung van giu style/component system hien tai cua Ivy; khong dua Nuvio branding vao UI.
+
+QUALITY PLAYBACK — YEU CAU CHOT
+- Trong giao dien Play cua muc YouTube phai co menu Quality theo giao dien Ivy hien tai.
+- Quality mac dinh: Auto.
+- HLS Master/DASH Manifest: doc cac variant bitrate/resolution thuc su ton tai.
+- Auto de player native adaptive bitrate tu chon theo bandwidth, buffer va kha nang thiet bi.
+- Mang tot -> tang quality; mang yeu -> ha quality de tranh rebuffer.
+- Chuyen quality trong cung phien phat, khong restart player, khong seek, khong nhay playback position.
+- Khoi dong nhanh: play nhanh, do bandwidth, sau do nang quality; khong cho 4K/2K truoc khi phat.
+- Manual quality: Auto + chi hien cac resolution co that, vi du 2160p/1440p/1080p/720p.
+- Chon 1080p phai tat adaptive switching va giu 1080p neu variant con kha dung.
+- Tuyet doi tranh doi URL -> tao player moi -> seek lap lai.
+- Android/Android TV: uu tien Media3/ExoPlayer adaptive bitrate.
+- iOS: uu tien AVPlayer/AVFoundation adaptive bitrate.
+- Log yeu cau: AUTO_QUALITY_ENABLED, BANDWIDTH_ESTIMATE, QUALITY_CHANGED, MANUAL_QUALITY_SELECTED.
+- Muc tieu: Direct Play nhanh nhu VLC mo stream + Auto Quality on dinh + khong nhay thoi gian phat.
+
+IPHONE / BUILD
+- Da yeu cau lam iPhone, khong can Simulator cho moi lan sua.
+- Simulator chi dung neu can kiem tra truc quan UI; khong phai buoc bat buoc cho moi code/build change.
+- Yeu cau hien tai: build IPA that, khong simulator-only.
+- Quy trinh: build -> kiem tra status/log -> neu loi thi tim nguyen nhan -> sua -> build lai -> kiem tra lai -> chi bao thanh cong khi artifact/build xanh.
+- Da co cac lan build truoc bi fail o Swift; da doc log va sua.
+- Loi da phat hien: MPVPlayerBridge.swift khu vuc dong 1426, lien quan escape chuoi Swift trong phan http headers. Da sua va push commit tham chieu 5bee25127fdd608a765cd5e11b03d99df0ec6eb8.
+- Run #50 da duoc theo doi; chi coi hoan thanh khi artifact IPA duoc xac minh.
+- Khong bao xong/deployed neu chua xac minh.
+
+CAC THAY DOI CODE/INTEGRATION DA THUC HIEN
+- PlayerControls.kt: bo sung tham so quality cho controls (onQualityClick, qualityLabel) de UI co the mo Quality.
+- PlayerScreenRuntimeUi.kt: noi Quality control vao controls cua player va render YouTubeQualityModal khi dang YouTube playback.
+- PlayerEngine.ios.kt: noi getVideoQualities/selectVideoQuality qua iOS bridge, ghi MANUAL_QUALITY_SELECTED.
+- MPVPlayerBridge.swift: sua literal/escape string Swift va xu ly lifecycle quality state; reset danh sach quality khi clear player; refresh danh sach adaptive quality khi khoi tao native adaptive player.
+- YouTubeQualityModal.kt: dung component quality rieng theo style Ivy hien tai.
+- Khong chen Simulator vao workflow chi de test code.
+
+GIAO DIEN / PROFILE
+- Da xac nhan muc Tao ho so truoc day chi hien loading placeholder thay vi avatar/image nhu Nuvio goc.
+- Yeu cau: sua de co hinh anh/bo chon avatar va them logo YouTube cho profile YouTube.
+- Yeu cau giao dien profile YouTube rieng cho iPhone va Android TV; khong de viec nay bi bo qua khi build.
+- YouTube profile phai duoc nhan dien ro rang trong UI.
+- Phan nao chi can code/build thi khong can chay Simulator.
+
+NGUYEN TAC LAM VIEC DA CHOT
+- Khong dung build mo phong; moi tien trinh phai la tien trinh that tren repo/build system.
+- Khi nguoi dung yeu cau lam, tu thuc hien thay vi chi mo ta buoc tiep theo.
+- Kiem tra lien tuc va sua loi lien tuc.
+- Khong dung cac buoc kiem tra iPhone Simulator neu khong can thiet.
+- Khi co loi build: doc log that, sua dung file/dong loi, push commit, chay build lai.
+- Khong ket luan hoan thanh chi dua tren viec code da commit.
+- Muc tieu cuoi: IPA iPhone co YouTube profile + YouTube layout + Quality UI/Auto adaptive playback; Android TV va mobile Android co cung he thong YouTube/Quality tuong ung.
+
+TRANG THAI CUOI PHIEN (2026-10-01)
+- YouTube Channel Resolver schema/channel data da co trong repo Toolchecklink.
+- Ivy/Nuvio-Xiec dang tich hop YouTube playback quality UI va iOS native bridge.
+- Build IPA dang duoc theo doi; chua coi la hoan thanh cho den khi artifact duoc xac minh.
+- Tiep tuc tu commit/build moi nhat, khong quay lai lam lai tu dau.
