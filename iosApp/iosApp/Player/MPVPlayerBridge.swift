@@ -661,7 +661,10 @@ final class MPVPlayerViewController: UIViewController {
         view.layer.addSublayer(layer)
         adaptivePlayer = player
         adaptivePlayerLayer = layer
+        availableVideoQualityHeights = []
+        selectedVideoQualityHeight = 0
         isPlayerLoading = true
+        refreshAdaptiveVideoQualities(asset: asset)
         print("[IvyPlayQuality] AUTO_QUALITY_ENABLED protocol=HLS")
         adaptiveTimeObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
@@ -728,6 +731,8 @@ final class MPVPlayerViewController: UIViewController {
         adaptivePlayerLayer = nil
         adaptivePlayer = nil
         usingNativeAdaptivePlayback = false
+        availableVideoQualityHeights = []
+        selectedVideoQualityHeight = 0
     }
 
     func playPlayback() {
