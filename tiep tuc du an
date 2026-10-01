@@ -88,3 +88,24 @@ TRANG THAI CUOI PHIEN (2026-10-01)
 - Ivy/Nuvio-Xiec dang tich hop YouTube playback quality UI va iOS native bridge.
 - Build IPA dang duoc theo doi; chua coi la hoan thanh cho den khi artifact duoc xac minh.
 - Tiep tuc tu commit/build moi nhat, khong quay lai lam lai tu dau.
+
+
+2026-10-01 — CHAT CONTINUATION / YOUTUBE QUALITY
+
+- Nguoi dung yeu cau tiep tuc lam den khi hoan thanh, khong dung o muc mo ta tien trinh.
+- Nguoi dung nhan manh phai kiem tra lien tuc va sua loi; neu build fail thi doc log that, sua ngay va build lai.
+- Nguoi dung khong muon moi lan sua code deu phai qua iPhone Simulator; chi dung Simulator khi that su can kiem tra UI truc quan.
+- Yeu cau hien tai la IPA iPhone that, khong phai simulator-only artifact.
+- UI Quality phai dong bo voi giao dien Ivy hien tai, khong tao mot giao dien lac phong cach.
+- Quality trong YouTube player: Auto mac dinh; menu chi hien cac resolution/variant thuc te; manual selection phai giu variant trong cung phien phat neu con kha dung; khong restart/seek de doi quality.
+- Auto Quality phai dung adaptive playback native cho HLS/DASH, uu tien play nhanh va sau do nang quality theo bandwidth/buffer/device.
+- Log can co AUTO_QUALITY_ENABLED, BANDWIDTH_ESTIMATE, QUALITY_CHANGED, MANUAL_QUALITY_SELECTED.
+- YouTube profile phai co logo YouTube de nhan dien; profile YouTube co Home/layout rieng va resolver channel that -> normalized model -> Ivy render.
+- Tao ho so truoc day bi loading placeholder thay vi avatar/image; yeu cau sua avatar/image va logo YouTube.
+- Android TV, Android mobile va iPhone phai dung chung he thong YouTube logic/quality o muc model/behavior, voi UI phu hop tung nen tang.
+- Nguoi dung yeu cau luu toan bo noi dung va ket qua cua chuoi chat nay vao file 'tiep tuc du an'; phan nay la handoff tiep tuc, khong xoa noi dung handoff cu.
+- Repo duoc xac nhan: chuongnguyen89dn-ui/Nuvio-Xiec, default branch main.
+- Run #50 duoc nguoi dung theo doi; khi bao tien do phai phan biet ro build dang running, failed hay artifact da verified.
+- Da xac dinh mot loi Swift o MPVPlayerBridge.swift quanh dong 1426 lien quan escape string http-header-fields; da sua va commit tham chieu 5bee25127fdd608a765cd5e11b03d99df0ec6eb8.
+- Da tiep tuc sua lifecycle quality state trong MPVPlayerBridge: reset available/selected quality khi player clear va refresh quality khi khoi tao adaptive player.
+- Khong duoc bao 'xong IPA' neu chua kiem tra artifact IPA that.
