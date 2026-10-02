@@ -1,0 +1,38 @@
+name: Fix iOS compatibility once
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-ios-compat-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch unsupported iOS APIs
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('iosApp/iosApp/ContentView.swift')
+          s = p.read_text()
+          s = s.replace('''        if #available(iOS 26.0, *) {\n            navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = false\n        }\n''', '')
+          s = s.replace('''        if #available(iOS 26.0, *), !usesComposeNavigationHeader {\n            content.navigationSubtitle(wrapper.route.subtitle ?? "")\n        } else {\n            content\n        }\n''', '''        content\n''')
+          s = s.replace('''        .tint(Color(uiColor: iconStore.accentColor))\n        .tabBarMinimizeBehavior(.automatic)\n''', '''        .tint(Color(uiColor: iconStore.accentColor))\n''')
+          p.write_text(s)
+      - name: Verify removed APIs
+        run: |
+          ! grep -nE 'interactiveContentPopGestureRecognizer|navigationSubtitle|tabBarMinimizeBehavior' iosApp/iosApp/ContentView.swift
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add iosApp/iosApp/ContentView.swift
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(ios): remove unsupported navigation APIs'
+          git push
