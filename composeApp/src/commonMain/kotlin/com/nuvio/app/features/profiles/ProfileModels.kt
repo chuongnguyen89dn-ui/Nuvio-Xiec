@@ -20,6 +20,7 @@ data class NuvioProfile(
     @SerialName("profile_background_url") val profileBackgroundUrl: String? = null,
     @SerialName("uses_primary_addons") val usesPrimaryAddons: Boolean = false,
     @SerialName("uses_primary_plugins") val usesPrimaryPlugins: Boolean = false,
+    @SerialName("content_mode") val contentMode: IvyPlayContentMode = IvyPlayContentMode.STANDARD,
     @SerialName("pin_enabled") val pinEnabled: Boolean = false,
     @SerialName("pin_locked_until") val pinLockedUntil: String? = null,
     @SerialName("created_at") val createdAt: String = "",
@@ -37,6 +38,7 @@ data class ProfilePushPayload(
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("profile_background_id") val profileBackgroundId: String? = null,
     @SerialName("profile_background_url") val profileBackgroundUrl: String? = null,
+    @SerialName("content_mode") val contentMode: IvyPlayContentMode = IvyPlayContentMode.STANDARD,
 )
 
 @Serializable
