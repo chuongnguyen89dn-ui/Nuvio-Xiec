@@ -686,7 +686,7 @@ final class MPVPlayerViewController: UIViewController {
         player.play()
     }
 
-    private func refreshAdaptiveVideoQualities(asset: AVAsset) {
+    private func refreshAdaptiveVideoQualities(asset: AVURLAsset) {
         if #available(iOS 15.0, *) {
             Task { [weak self] in
                 do {
