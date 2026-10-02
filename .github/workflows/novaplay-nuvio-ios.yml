@@ -70,7 +70,6 @@ jobs:
           PY
           )"
           xcrun simctl boot "$UDID" || true
-          # Do not let simulator proof block the actual IPA build forever.
           READY=0
           for i in {1..60}; do
             if xcrun simctl list devices | grep "$UDID" | grep -q "(Booted)"; then READY=1; break; fi
@@ -125,6 +124,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 \
-            --title "IvyPlay iOS ${GITHUB_REF_NAME}" --generate-notes --verify-tag
-
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 \
+              --title "IvyPlay iOS ${GITHUB_REF_NAME}" --generate-notes --verify-tag
+          fi
