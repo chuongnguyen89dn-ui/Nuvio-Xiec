@@ -125,11 +125,9 @@ final class RootComposeViewController: UIViewController {
     }
 
     private func configureBackGestures(isVisible: Bool) {
-#if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = false
         }
-#endif
         navigationController?.interactivePopGestureRecognizer?.isEnabled =
             isVisible ? !disablesInteractiveContentPopGesture : true
     }
@@ -921,9 +919,11 @@ private struct DetailDestinationView: View {
 
     @ViewBuilder
     var body: some View {
-        // iOS does not expose SwiftUI.navigationSubtitle; the Compose header
-        // already renders the subtitle where applicable.
-        content
+        if #available(iOS 26.0, *), !usesComposeNavigationHeader {
+            content.navigationSubtitle(wrapper.route.subtitle ?? "")
+        } else {
+            content
+        }
     }
 }
 
@@ -1201,7 +1201,6 @@ private struct NativeProfileSwitcherView: View {
 struct NativeNavContentView: View {
     @StateObject private var appCoordinator = AppNavigationCoordinator()
     @StateObject private var iconStore = NativeTabIconStore()
-    @State private var showIvyUpdater = false
 
     private var usesNativeTabBar: Bool {
         guard UIDevice.current.userInterfaceIdiom == .phone else {
@@ -1338,9 +1337,7 @@ struct NativeNavContentView: View {
             }
         }
         .tint(Color(uiColor: iconStore.accentColor))
-#if compiler(>=6.2)
         .tabBarMinimizeBehavior(.automatic)
-#endif
     }
 
     @ViewBuilder
@@ -1365,26 +1362,6 @@ struct NativeNavContentView: View {
                 .allowsHitTesting(!appCoordinator.isAppReady)
                 .accessibilityHidden(appCoordinator.isAppReady)
                 .zIndex(1)
-        }
-        .safeAreaInset(edge: .top, spacing: 0) {
-            if appCoordinator.isAppReady && appCoordinator.selectedTab == .settings &&
-                appCoordinator.coordinator(for: .settings).path.isEmpty {
-                HStack {
-                    Spacer()
-                    Button { showIvyUpdater = true } label: {
-                        Label("Cập nhật IvyPlay", systemImage: "arrow.down.circle")
-                            .font(.footnote.weight(.semibold))
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(.red)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 4)
-                }
-                .background(Color(uiColor: nuvioBackgroundColor))
-            }
-        }
-        .sheet(isPresented: $showIvyUpdater) {
-            IvyPlayUpdateView().preferredColorScheme(.dark)
         }
     }
 }
@@ -1418,149 +1395,5 @@ private extension UIColor {
             blue: CGFloat(rgb & 0xFF) / 255,
             alpha: 1
         )
-    }
-}
-
-
-// MARK: - Native IvyPlay iOS release update and safe installer handoff
-
-private struct IvyRelease: Decodable {
-    let tag_name: String
-    let body: String?
-    let html_url: URL
-    let draft: Bool
-    let prerelease: Bool
-    let assets: [IvyAsset]
-}
-
-private struct IvyAsset: Decodable {
-    let name: String
-    let browser_download_url: URL
-}
-
-@MainActor
-private final class IvyPlayUpdateModel: ObservableObject {
-    @Published var release: IvyRelease?
-    @Published var ipaURL: URL?
-    @Published var message = "Kiểm tra phiên bản mới từ GitHub Releases."
-    @Published var checking = false
-
-    private static let releasesURL = URL(string: "https://api.github.com/repos/chuongnguyen89dn-ui/Nuvio-Xiec/releases?per_page=30")!
-
-    var installedVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-    }
-
-    private func numbers(_ raw: String) -> [Int]? {
-        let tokens = raw.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
-            .split(whereSeparator: { $0 == "." || $0 == "-" || $0 == "_" })
-        let values = tokens.map { Int($0) }
-        guard !values.isEmpty, values.allSatisfy({ $0 != nil }) else { return nil }
-        return values.compactMap { $0 }
-    }
-
-    private func newer(_ remote: String, than local: String) -> Bool {
-        guard let a = numbers(remote), let b = numbers(local) else { return false }
-        for index in 0..<max(a.count, b.count) {
-            let left = index < a.count ? a[index] : 0
-            let right = index < b.count ? b[index] : 0
-            if left != right { return left > right }
-        }
-        return false
-    }
-
-    func check() async {
-        guard !checking else { return }
-        checking = true
-        defer { checking = false }
-        release = nil
-        ipaURL = nil
-        do {
-            var request = URLRequest(url: Self.releasesURL)
-            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            request.setValue("IvyPlay-iOS-Updater", forHTTPHeaderField: "User-Agent")
-            request.timeoutInterval = 15
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                message = "Không thể đọc GitHub Releases."
-                return
-            }
-            let releases = try JSONDecoder().decode([IvyRelease].self, from: data)
-            guard let match = releases.first(where: { item in
-                !item.draft && !item.prerelease &&
-                item.tag_name.lowercased().hasPrefix("ivyplay-ios-v") &&
-                item.assets.contains(where: { $0.name == "IvyPlay-unsigned.ipa" })
-            }), let asset = match.assets.first(where: { $0.name == "IvyPlay-unsigned.ipa" }) else {
-                message = "Chưa có bản phát hành IvyPlay iOS chính thức."
-                return
-            }
-            let version = String(match.tag_name.dropFirst("ivyplay-ios-v".count))
-            guard newer(version, than: installedVersion) else {
-                message = "Bạn đang dùng phiên bản mới nhất (\(installedVersion))."
-                return
-            }
-            guard asset.browser_download_url.scheme == "https",
-                asset.browser_download_url.host?.lowercased() == "github.com" else {
-                message = "Liên kết bản cập nhật không hợp lệ."
-                return
-            }
-            release = match
-            ipaURL = asset.browser_download_url
-            message = "Có bản IvyPlay \(version). Cần trình cài đặt phù hợp để ký và cài đè."
-        } catch {
-            message = "Không kiểm tra được cập nhật: \(error.localizedDescription)"
-        }
-    }
-
-    func openTrollStore() {
-        guard let ipaURL, var link = URLComponents(string: "apple-magnifier://install") else { return }
-        link.queryItems = [URLQueryItem(name: "url", value: ipaURL.absoluteString)]
-        guard let url = link.url else { return }
-        UIApplication.shared.open(url)
-    }
-}
-
-private struct IvyPlayUpdateView: View {
-    @Environment(\.dismiss) private var dismiss
-    @StateObject private var updater = IvyPlayUpdateModel()
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Phiên bản") {
-                    LabeledContent("Đang cài", value: updater.installedVersion)
-                    Text(updater.message).font(.footnote)
-                    Button(updater.checking ? "Đang kiểm tra…" : "Kiểm tra cập nhật") {
-                        Task { await updater.check() }
-                    }
-                    .disabled(updater.checking)
-                }
-                if let release = updater.release, let url = updater.ipaURL {
-                    Section("Bản mới: \(release.tag_name)") {
-                        if let notes = release.body, !notes.isEmpty {
-                            Text(notes).font(.footnote)
-                        }
-                        Button("Cập nhật qua TrollStore") { updater.openTrollStore() }
-                        Text("Chỉ dùng khi đã cài TrollStore. Trình cài đặt sẽ yêu cầu xác nhận.")
-                            .font(.caption).foregroundStyle(.secondary)
-                        ShareLink(item: url) {
-                            Label("Chia sẻ IPA tới trình ký/cài đặt khác", systemImage: "square.and.arrow.up")
-                        }
-                        Link("Xem GitHub Release", destination: release.html_url)
-                    }
-                }
-                Section {
-                    Text("iOS không cho phép IvyPlay tự thay thế ứng dụng. Khi dùng eSign/KSign/SideStore, cần ký và cài đè cùng Bundle ID và danh tính ký phù hợp; không xóa app trước khi cập nhật.")
-                        .font(.footnote).foregroundStyle(.secondary)
-                }
-            }
-            .navigationTitle("Cập nhật IvyPlay")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Đóng") { dismiss() }
-                }
-            }
-        }
-        .task { await updater.check() }
     }
 }

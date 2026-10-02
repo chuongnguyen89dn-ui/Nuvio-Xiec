@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Flag
@@ -90,8 +89,6 @@ internal fun PlayerControlsShell(
     onSpeedClick: () -> Unit,
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
-    onQualityClick: (() -> Unit)? = null,
-    qualityLabel: String = "Auto",
     onVideoSettingsClick: (() -> Unit)? = null,
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
@@ -195,8 +192,6 @@ internal fun PlayerControlsShell(
                     onSpeedClick = onSpeedClick,
                     onSubtitleClick = onSubtitleClick,
                     onAudioClick = onAudioClick,
-                    onQualityClick = onQualityClick,
-                    qualityLabel = qualityLabel,
                     onSourcesClick = onSourcesClick,
                     onEpisodesClick = onEpisodesClick,
                     modifier = Modifier
@@ -503,8 +498,6 @@ private fun ProgressControls(
     onSpeedClick: () -> Unit,
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
-    onQualityClick: (() -> Unit)? = null,
-    qualityLabel: String = "Auto",
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -561,13 +554,6 @@ private fun ProgressControls(
                         painter = audioPainter,
                         onClick = onAudioClick,
                     )
-                    if (onQualityClick != null) {
-                        PlayerActionPillButton(
-                            label = qualityLabel,
-                            icon = Icons.Filled.HighQuality,
-                            onClick = onQualityClick,
-                        )
-                    }
                     if (onSourcesClick != null) {
                         PlayerActionPillButton(
                             label = stringResource(Res.string.compose_player_sources),

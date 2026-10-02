@@ -103,13 +103,6 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     }
     func setPlaybackSpeed(speed: Float) { playerVC?.setSpeed(speed) }
     func setMuted(muted: Bool) { playerVC?.setMuted(muted) }
-    func getVideoQualityCount() -> Int32 { Int32(playerVC?.availableVideoQualityHeights.count ?? 0) }
-    func getVideoQualityHeight(at: Int32) -> Int32 {
-        guard let values = playerVC?.availableVideoQualityHeights, Int(at) >= 0, Int(at) < values.count else { return 0 }
-        return Int32(values[Int(at)])
-    }
-    func getSelectedVideoQualityHeight() -> Int32 { Int32(playerVC?.selectedVideoQualityHeight ?? 0) }
-    func selectVideoQuality(height: Int32) { playerVC?.selectVideoQuality(Int(height)) }
     func setResizeMode(mode: Int32) { playerVC?.setResize(Int(mode)) }
     func syncVideoSurfaceLayout(width: Double, height: Double) {
         playerVC?.syncVideoSurfaceLayout(size: CGSize(width: width, height: height))
@@ -279,14 +272,6 @@ final class MPVPlayerViewController: UIViewController {
     private var recentPlaybackLogs: [String] = []
     private var activeRequestHeaders: [String: String] = [:]
     private var preferredAudioLanguages: [String] = []
-    // IvyPlay: native AVPlayer owns adaptive HLS sessions on iPhone. This keeps ABR
-    // inside one playback session instead of swapping URLs/reloading/seek loops.
-    private var adaptivePlayer: AVPlayer?
-    private var adaptivePlayerLayer: AVPlayerLayer?
-    private var adaptiveTimeObserver: Any?
-    private var usingNativeAdaptivePlayback = false
-    private(set) var availableVideoQualityHeights: [Int] = []
-    private(set) var selectedVideoQualityHeight: Int = 0
 
     // Cached track lists
     var audioTracks: [TrackInfo] = []
@@ -452,7 +437,6 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     private func layoutMetalLayer() {
-        adaptivePlayerLayer?.frame = view.bounds
         let bounds = CGRect(origin: .zero, size: externallyManagedViewSize ?? view.bounds.size)
         guard bounds.width > 1, bounds.height > 1 else { return }
 
@@ -586,11 +570,6 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     private func startLoad(_ request: PendingLoadRequest) {
-        if isNativeAdaptiveSource(request.urlString), request.audioUrl == nil {
-            startNativeAdaptivePlayback(request)
-            return
-        }
-        usingNativeAdaptivePlayback = false
         guard mpv != nil else { return }
         layoutMetalLayer()
         clearPlaybackError()
@@ -635,112 +614,7 @@ final class MPVPlayerViewController: UIViewController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: workItem)
     }
 
-    private func isNativeAdaptiveSource(_ urlString: String) -> Bool {
-        let path = URL(string: urlString)?.path.lowercased() ?? urlString.lowercased()
-        return path.hasSuffix(".m3u8")
-    }
-
-    private func startNativeAdaptivePlayback(_ request: PendingLoadRequest) {
-        clearNativeAdaptivePlayback()
-        guard let url = URL(string: request.urlString) else { return }
-        usingNativeAdaptivePlayback = true
-        let asset = AVURLAsset(url: url, options: [
-            "AVURLAssetHTTPHeaderFieldsKey": sanitizeRequestHeaders(request.requestHeaders)
-        ])
-        let item = AVPlayerItem(asset: asset)
-        // 0 means AVFoundation chooses the variant from measured throughput/buffer/device.
-        item.preferredPeakBitRate = 0
-        if #available(iOS 15.0, *) {
-            item.preferredForwardBufferDuration = 3
-        }
-        let player = AVPlayer(playerItem: item)
-        player.automaticallyWaitsToMinimizeStalling = true
-        let layer = AVPlayerLayer(player: player)
-        layer.videoGravity = .resizeAspect
-        layer.frame = view.bounds
-        view.layer.addSublayer(layer)
-        adaptivePlayer = player
-        adaptivePlayerLayer = layer
-        availableVideoQualityHeights = []
-        selectedVideoQualityHeight = 0
-        isPlayerLoading = true
-        refreshAdaptiveVideoQualities(asset: asset)
-        print("[IvyPlayQuality] AUTO_QUALITY_ENABLED protocol=HLS")
-        adaptiveTimeObserver = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
-            queue: .main
-        ) { [weak self] time in
-            guard let self, let item = player.currentItem else { return }
-            self.positionMs = Int64(max(CMTimeGetSeconds(time), 0) * 1000)
-            let duration = CMTimeGetSeconds(item.duration)
-            if duration.isFinite { self.durationMs = Int64(max(duration, 0) * 1000) }
-            self.isPlayerLoading = item.status == .unknown
-            self.isPlayerPlaying = player.rate > 0
-            if let event = item.accessLog()?.events.last {
-                let estimate = Int64(event.observedBitrate)
-                if estimate > 0 { print("[IvyPlayQuality] BANDWIDTH_ESTIMATE bps=\(estimate)") }
-                let indicated = Int64(event.indicatedBitrate)
-                if indicated > 0 { print("[IvyPlayQuality] ACTIVE_VARIANT_BITRATE bps=\(indicated)") }
-            }
-        }
-        player.play()
-    }
-
-    private func refreshAdaptiveVideoQualities(asset: AVURLAsset) {
-        if #available(iOS 15.0, *) {
-            Task { [weak self] in
-                do {
-                    let variants = try await asset.load(.variants)
-                    let heights = variants.compactMap { variant -> Int? in
-                        guard let size = variant.videoAttributes?.presentationSize, size.height > 0 else { return nil }
-                        return Int(size.height.rounded())
-                    }
-                    let normalized = Array(Set(heights)).sorted(by: >)
-                    await MainActor.run {
-                        self?.availableVideoQualityHeights = normalized
-                        print("[IvyPlayQuality] AVAILABLE_QUALITIES heights=\\(normalized)")
-                    }
-                } catch {
-                    print("[IvyPlayQuality] QUALITY_DISCOVERY_FAILED error=\\(error.localizedDescription)")
-                }
-            }
-        }
-    }
-
-    func selectVideoQuality(_ height: Int) {
-        guard usingNativeAdaptivePlayback, let item = adaptivePlayer?.currentItem else { return }
-        selectedVideoQualityHeight = max(0, height)
-        if height <= 0 {
-            item.preferredPeakBitRate = 0
-            item.preferredMaximumResolution = .zero
-            print("[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=Auto")
-        } else {
-            item.preferredPeakBitRate = 0
-            item.preferredMaximumResolution = CGSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat(height))
-            print("[IvyPlayQuality] MANUAL_QUALITY_SELECTED quality=\\(height)p")
-        }
-    }
-
-    private func clearNativeAdaptivePlayback() {
-        if let observer = adaptiveTimeObserver, let player = adaptivePlayer {
-            player.removeTimeObserver(observer)
-        }
-        adaptiveTimeObserver = nil
-        adaptivePlayer?.pause()
-        adaptivePlayerLayer?.removeFromSuperlayer()
-        adaptivePlayerLayer = nil
-        adaptivePlayer = nil
-        usingNativeAdaptivePlayback = false
-        availableVideoQualityHeights = []
-        selectedVideoQualityHeight = 0
-    }
-
     func playPlayback() {
-        if usingNativeAdaptivePlayback {
-            adaptivePlayer?.play()
-            isPlayerPlaying = true
-            return
-        }
         guard mpv != nil else { return }
         publishNowPlayingForPlaybackSession()
         setFlag("pause", false)
@@ -749,7 +623,6 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func pausePlayback() {
-        if usingNativeAdaptivePlayback { adaptivePlayer?.pause(); isPlayerPlaying = false; return }
         guard mpv != nil else { return }
         setFlag("pause", true)
         isPlayerPlaying = false
@@ -757,7 +630,6 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func seekToMs(_ ms: Int64) {
-        if usingNativeAdaptivePlayback { adaptivePlayer?.seek(to: CMTime(value: ms, timescale: 1000)); return }
         guard mpv != nil else { return }
         let seconds = Double(ms) / 1000.0
         command("seek", args: [String(format: "%.3f", seconds), "absolute"])
@@ -975,7 +847,6 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func destroyPlayer() {
-        clearNativeAdaptivePlayback()
         NotificationCenter.default.removeObserver(self)
         UIApplication.shared.endReceivingRemoteControlEvents()
         resignFirstResponder()

@@ -214,7 +214,6 @@ object ProfileRepository {
         avatarId: String? = null,
         avatarUrl: String? = null,
         usesPrimaryAddons: Boolean = false,
-        contentMode: IvyPlayContentMode = IvyPlayContentMode.STANDARD,
     ) {
         val existing = _state.value.profiles
         val nextIndex = ((1..MAX_PROFILES).toSet() - existing.map { it.profileIndex }.toSet()).minOrNull() ?: return
@@ -230,7 +229,6 @@ object ProfileRepository {
                 avatarUrl = profile.avatarUrl,
                 profileBackgroundId = profile.profileBackgroundId,
                 profileBackgroundUrl = profile.profileBackgroundUrl,
-                contentMode = profile.contentMode,
             )
         } + ProfilePushPayload(
             profileIndex = nextIndex,
@@ -239,7 +237,6 @@ object ProfileRepository {
             usesPrimaryAddons = usesPrimaryAddons,
             avatarId = avatarId,
             avatarUrl = avatarUrl,
-            contentMode = contentMode,
         )
 
         pushProfiles(allPayloads)
@@ -254,7 +251,6 @@ object ProfileRepository {
         profileBackgroundId: String? = null,
         profileBackgroundUrl: String? = null,
         usesPrimaryAddons: Boolean = false,
-        contentMode: IvyPlayContentMode = IvyPlayContentMode.STANDARD,
     ) {
         val allPayloads = _state.value.profiles.map { profile ->
             if (profile.profileIndex == profileIndex) {
@@ -267,7 +263,6 @@ object ProfileRepository {
                     avatarUrl = avatarUrl,
                     profileBackgroundId = profileBackgroundId,
                     profileBackgroundUrl = profileBackgroundUrl,
-                    contentMode = contentMode,
                 )
             } else {
                 ProfilePushPayload(
@@ -419,7 +414,6 @@ object ProfileRepository {
                 profileBackgroundUrl = p.profileBackgroundUrl,
                 usesPrimaryAddons = p.usesPrimaryAddons,
                 usesPrimaryPlugins = p.usesPrimaryPlugins,
-                contentMode = p.contentMode,
             )
         }.sortedBy { it.profileIndex }
         _state.value = _state.value.copy(

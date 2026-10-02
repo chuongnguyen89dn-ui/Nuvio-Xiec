@@ -234,13 +234,6 @@ private fun p2pConnectingPhaseLabel(phase: String): String = when (phase) {
     )
 }
 
-private fun PlayerScreenRuntime.isYouTubePlayback(): Boolean =
-    activeVideoId?.startsWith("khoai_", ignoreCase = true) == true ||
-        activeProviderAddonId?.contains("youtube", ignoreCase = true) == true ||
-        activeProviderName.contains("youtube", ignoreCase = true) ||
-        activeSourceUrl.contains("youtube.com", ignoreCase = true) ||
-        activeSourceUrl.contains("youtu.be", ignoreCase = true)
-
 private fun PlayerScreenRuntime.currentInitialPositionRequestKey(): String? {
     val positionMs = activeInitialPositionMs.takeIf { it > 0L } ?: return null
     return "$activePlaybackIdentity:${activeVideoId.orEmpty()}:$positionMs"
@@ -287,14 +280,6 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 refreshTracks()
                 showAudioModal = true
             },
-            onQualityClick = if (isYouTubePlayback()) {
-                {
-                    videoQualities = playerController?.getVideoQualities().orEmpty()
-                    showYouTubeQualityModal = true
-                    controlsVisible = true
-                }
-            } else null,
-            qualityLabel = videoQualities.firstOrNull { it.isSelected }?.label ?: "Auto",
             onVideoSettingsClick = if (isIos) {
                 {
                     showVideoSettingsModal = true
@@ -450,17 +435,6 @@ private fun BoxScope.RenderPlaybackOverlays(
 
 @Composable
 private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
-    YouTubeQualityModal(
-        visible = showYouTubeQualityModal && isYouTubePlayback(),
-        qualities = videoQualities,
-        onSelect = { height ->
-            playerController?.selectVideoQuality(height)
-            videoQualities = playerController?.getVideoQualities().orEmpty()
-            showYouTubeQualityModal = false
-            controlsVisible = true
-        },
-        onDismiss = { showYouTubeQualityModal = false },
-    )
     PlayerScreenModalHosts(
         pendingP2pSwitch = pendingP2pSwitch,
         onPendingP2pSwitchChanged = { pendingP2pSwitch = it },

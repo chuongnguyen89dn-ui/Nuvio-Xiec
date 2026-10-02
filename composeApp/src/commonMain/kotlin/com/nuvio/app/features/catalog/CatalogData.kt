@@ -72,7 +72,6 @@ suspend fun fetchCatalogPage(
     type: String,
     catalogId: String,
     genre: String? = null,
-    actor: String? = null,
     search: String? = null,
     skip: Int? = null,
     maxItems: Int? = null,
@@ -83,7 +82,6 @@ suspend fun fetchCatalogPage(
         type = type,
         catalogId = catalogId,
         genre = genre,
-        actor = actor,
         search = search,
         skip = skip,
     )
@@ -182,14 +180,12 @@ internal fun buildCatalogUrl(
     type: String,
     catalogId: String,
     genre: String?,
-    actor: String?,
     search: String?,
     skip: Int?,
 ): String {
     val extraParts = buildList {
         if (!search.isNullOrBlank()) add("search=${search.encodeCatalogExtra()}")
         if (!genre.isNullOrBlank()) add("genre=${genre.encodeCatalogExtra()}")
-        if (!actor.isNullOrBlank()) add("actor=${actor.encodeCatalogExtra()}")
         if (skip != null && skip > 0) add("skip=$skip")
     }
 

@@ -485,7 +485,6 @@ object SearchRepository {
             type = selectedCatalog.type,
             catalogId = selectedCatalog.catalogId,
             genre = current.selectedGenre,
-            actor = null,
             search = null,
             skip = requestedSkip.takeIf { it > 0 },
         )
@@ -512,7 +511,6 @@ object SearchRepository {
                     type = selectedCatalog.type,
                     catalogId = selectedCatalog.catalogId,
                     genre = current.selectedGenre,
-                    actor = null,
                     skip = requestedSkip.takeIf { it > 0 },
                     forceRefresh = forceRefresh,
                 ).withUnreleasedFilter()
