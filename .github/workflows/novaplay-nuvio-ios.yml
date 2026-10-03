@@ -46,7 +46,7 @@ jobs:
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
           test -f MPVKit/Package.swift
       - name: Build ORIGINAL Nuvio iPhone UI (simulator)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'ivyplay') }}
         shell: bash
         run: |
           set -o pipefail
@@ -55,7 +55,7 @@ jobs:
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build/ios-simulator CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-simulator.log
       - name: Launch actual app and capture screenshot
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'ivyplay') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -70,27 +70,19 @@ jobs:
           PY
           )"
           xcrun simctl boot "$UDID" || true
-          READY=0
-          for i in {1..60}; do
-            if xcrun simctl list devices | grep "$UDID" | grep -q "(Booted)"; then READY=1; break; fi
-            sleep 2
-          done
-          if [ "$READY" -ne 1 ]; then
-            echo "Simulator boot timed out; skipping screenshot proof."
-            exit 0
-          fi
+          xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
           BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
           xcrun simctl launch "$UDID" "$BUNDLE_ID" | tee simulator-launch.log
           sleep 15
           mkdir -p build/nuvio-screenshots
-          xcrun simctl io "$UDID" screenshot build/nuvio-screenshots/original-nuvio-home.png
+          xcrun simctl io "$UDID" screenshot build/nuvio-screenshots/ivyplay-home.png
           xcrun simctl spawn "$UDID" log show --last 2m --style compact --predicate 'process == "Nuvio"' > build/nuvio-screenshots/runtime.log || true
       - name: Upload actual UI screenshot and diagnostic logs
-        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
+        if: ${{ always() && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'ivyplay')) }}
         uses: actions/upload-artifact@v4
         with:
-          name: NovaPlay-original-Nuvio-ui-proof
+          name: IvyPlay-iOS-ui-proof
           path: |
             build/nuvio-screenshots/
             simulator-launch.log
