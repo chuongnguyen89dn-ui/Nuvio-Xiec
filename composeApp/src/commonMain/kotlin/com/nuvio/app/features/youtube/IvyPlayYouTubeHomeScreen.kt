@@ -16,12 +16,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 
-/** IvyPlay's YouTube-mode home. Deliberately independent from Nuvio's movie/TV home. */
+/** YouTube-style home used only by IvyPlay profiles whose content mode is YOUTUBE. */
 @Composable
 fun IvyPlayYouTubeHomeScreen(
     modifier: Modifier = Modifier,
@@ -49,9 +51,7 @@ fun IvyPlayYouTubeHomeScreen(
                     val channel = channels.firstOrNull { it.channel.channelId == video.channelId }?.channel
                     YouTubeVideoCard(video, channel, onVideoClick, onChannelClick)
                 }
-                if (shorts.isNotEmpty()) {
-                    item { YouTubeShortsShelf(shorts, onVideoClick) }
-                }
+                if (shorts.isNotEmpty()) item { YouTubeShortsShelf(shorts, onVideoClick) }
             }
         }
     }
@@ -73,7 +73,10 @@ private fun YouTubeTopBar() {
         Spacer(Modifier.width(22.dp))
         Icon(Icons.Default.Search, "Search", tint = Color.White)
         Spacer(Modifier.width(20.dp))
-        Box(Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF1565C0)), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF1565C0)),
+            contentAlignment = Alignment.Center,
+        ) {
             Text("I", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
@@ -82,10 +85,21 @@ private fun YouTubeTopBar() {
 @Composable
 private fun YouTubeTopicChips() {
     val topics = listOf("All", "Travel", "Food", "Live", "Music", "Recently uploaded")
-    LazyRow(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         items(topics) { topic ->
-            Surface(shape = RoundedCornerShape(8.dp), color = if (topic == "All") Color.White else Color(0xFF272727)) {
-                Text(topic, color = if (topic == "All") Color.Black else Color.White, modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp), fontSize = 14.sp)
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (topic == "All") Color.White else Color(0xFF272727),
+            ) {
+                Text(
+                    topic,
+                    color = if (topic == "All") Color.Black else Color.White,
+                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+                    fontSize = 14.sp,
+                )
             }
         }
     }
@@ -94,10 +108,23 @@ private fun YouTubeTopicChips() {
 @Composable
 private fun IvyPlayChannelPlaceholders() {
     Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Text("Channels", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+        Text(
+            "Channels",
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
         listOf("Khoai Lang Thang", "HOA BAN FOOD").forEachIndexed { index, name ->
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(46.dp).clip(CircleShape).background(if (index == 0) Color(0xFF6D4C41) else Color(0xFF2E7D32)), contentAlignment = Alignment.Center) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier.size(46.dp).clip(CircleShape)
+                        .background(if (index == 0) Color(0xFF6D4C41) else Color(0xFF2E7D32)),
+                    contentAlignment = Alignment.Center,
+                ) {
                     Text(name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.width(12.dp))
@@ -111,18 +138,82 @@ private fun IvyPlayChannelPlaceholders() {
 }
 
 @Composable
-private fun YouTubeVideoCard(video: YouTubeVideo, channel: YouTubeChannel?, onVideoClick: (YouTubeVideo) -> Unit, onChannelClick: (YouTubeChannel) -> Unit) {
+private fun YouTubeVideoCard(
+    video: YouTubeVideo,
+    channel: YouTubeChannel?,
+    onVideoClick: (YouTubeVideo) -> Unit,
+    onChannelClick: (YouTubeChannel) -> Unit,
+) {
     Column(Modifier.fillMaxWidth().padding(bottom = 18.dp).clickable { onVideoClick(video) }) {
-        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color(0xFF202020)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(48.dp))
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color(0xFF202020))) {
+            AsyncImage(
+                model = video.thumbnail ?: "https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg",
+                contentDescription = video.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            video.durationSeconds?.let { seconds ->
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                    shape = RoundedCornerShape(4.dp),
+                    color = Color.Black.copy(alpha = 0.82f),
+                ) {
+                    Text(
+                        formatDuration(seconds),
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    )
+                }
+            }
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.Top) {
-            Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFF333333)).then(if (channel != null) Modifier.clickable { onChannelClick(channel) } else Modifier))
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            if (channel?.avatar != null) {
+                AsyncImage(
+                    model = channel.avatar,
+                    contentDescription = channel.displayName ?: channel.name,
+                    modifier = Modifier.size(38.dp).clip(CircleShape).clickable { onChannelClick(channel) },
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Box(
+                    Modifier.size(38.dp).clip(CircleShape).background(Color(0xFF333333))
+                        .then(if (channel != null) Modifier.clickable { onChannelClick(channel) } else Modifier),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        (channel?.displayName ?: channel?.name ?: video.channelName ?: "Y").take(1),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
-                Text(video.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    video.title,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 Spacer(Modifier.height(3.dp))
-                Text(listOfNotNull(video.channelName, video.viewCount?.let { "$it views" }, video.uploadDate).joinToString(" • "), color = Color(0xFFAAAAAA), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    listOfNotNull(
+                        video.channelName,
+                        video.viewCount?.let(::compactViews),
+                        video.uploadDate,
+                    ).joinToString(" • "),
+                    color = Color(0xFFAAAAAA),
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Icon(Icons.Default.MoreVert, "More", tint = Color.White)
         }
@@ -137,13 +228,28 @@ private fun YouTubeShortsShelf(shorts: List<YouTubeVideo>, onVideoClick: (YouTub
             Spacer(Modifier.width(7.dp))
             Text("Shorts", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
-        LazyRow(contentPadding = PaddingValues(12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(
+            contentPadding = PaddingValues(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             items(shorts.take(10), key = { it.videoId }) { video ->
                 Column(Modifier.width(160.dp).clickable { onVideoClick(video) }) {
-                    Box(Modifier.fillMaxWidth().aspectRatio(9f / 16f).clip(RoundedCornerShape(10.dp)).background(Color(0xFF202020)), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.PlayArrow, null, tint = Color.White)
-                    }
-                    Text(video.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+                    AsyncImage(
+                        model = video.thumbnail ?: "https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg",
+                        contentDescription = video.title,
+                        modifier = Modifier.fillMaxWidth().aspectRatio(9f / 16f)
+                            .clip(RoundedCornerShape(10.dp)).background(Color(0xFF202020)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Text(
+                        video.title,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
                 }
             }
         }
@@ -152,10 +258,19 @@ private fun YouTubeShortsShelf(shorts: List<YouTubeVideo>, onVideoClick: (YouTub
 
 @Composable
 private fun YouTubeBottomBar() {
-    Row(Modifier.fillMaxWidth().height(64.dp).background(Color.Black), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceAround) {
+    Row(
+        Modifier.fillMaxWidth().height(64.dp).background(Color.Black),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceAround,
+    ) {
         YouTubeNavItem(Icons.Default.Home, "Home")
         YouTubeNavItem(Icons.Default.SmartDisplay, "Shorts")
-        Box(Modifier.size(42.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, "Create", tint = Color.Black) }
+        Box(
+            Modifier.size(42.dp).clip(CircleShape).background(Color.White),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Default.Add, "Create", tint = Color.Black)
+        }
         YouTubeNavItem(Icons.Default.Subscriptions, "Subscriptions")
         YouTubeNavItem(Icons.Default.AccountCircle, "You")
     }
@@ -167,4 +282,26 @@ private fun YouTubeNavItem(icon: androidx.compose.ui.graphics.vector.ImageVector
         Icon(icon, label, tint = Color.White, modifier = Modifier.size(24.dp))
         Text(label, color = Color.White, fontSize = 10.sp)
     }
+}
+
+private fun formatDuration(seconds: Long): String {
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val secs = seconds % 60
+    val mm = minutes.toString().padStart(2, '0')
+    val ss = secs.toString().padStart(2, '0')
+    return if (hours > 0) "$hours:$mm:$ss" else "$minutes:$ss"
+}
+
+private fun compactNumber(value: Long, unit: Long, suffix: String): String {
+    val whole = value / unit
+    val tenth = (value % unit) * 10 / unit
+    return if (tenth == 0L) "$whole$suffix" else "$whole.$tenth$suffix"
+}
+
+private fun compactViews(value: Long): String = when {
+    value >= 1_000_000_000L -> "${compactNumber(value, 1_000_000_000L, "B")} views"
+    value >= 1_000_000L -> "${compactNumber(value, 1_000_000L, "M")} views"
+    value >= 1_000L -> "${compactNumber(value, 1_000L, "K")} views"
+    else -> "$value views"
 }
