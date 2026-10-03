@@ -37,7 +37,7 @@ jobs:
         shell: bash
         run: |
           chmod +x gradlew
-          ./gradlew :androidApp:assembleTvDebug --stacktrace
+          ./gradlew :androidApp:assembleTvDebug -Pnuvio.android.distribution=full --stacktrace
       - name: Stage IvyPlayTV APK
         shell: bash
         run: |
