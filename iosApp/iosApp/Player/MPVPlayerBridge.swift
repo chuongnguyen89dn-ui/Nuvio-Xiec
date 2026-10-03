@@ -272,6 +272,11 @@ final class MPVPlayerViewController: UIViewController {
     private var recentPlaybackLogs: [String] = []
     private var activeRequestHeaders: [String: String] = [:]
     private var preferredAudioLanguages: [String] = []
+    private var av01Proxy: AV01LocalHLSProxy?
+    private var av01Player: AVPlayer?
+    private var av01PlayerLayer: AVPlayerLayer?
+    private var av01TimeObserver: Any?
+    private var usingAV01Playback = false
 
     // Cached track lists
     var audioTracks: [TrackInfo] = []
@@ -570,6 +575,12 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     private func startLoad(_ request: PendingLoadRequest) {
+        if request.audioUrl == nil,
+           request.urlString.lowercased().hasPrefix("av01:") {
+            startAV01Playback(request)
+            return
+        }
+
         guard mpv != nil else { return }
         layoutMetalLayer()
         clearPlaybackError()
@@ -591,6 +602,96 @@ final class MPVPlayerViewController: UIViewController {
                 self?.addSubtitle(subtitle, mode: "auto")
             }
         }
+    }
+
+    private func startAV01Playback(_ request: PendingLoadRequest) {
+        guard let id = Int(request.urlString.dropFirst("av01:".count).trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            publishPlaybackError("Invalid AV01 stream ID")
+            return
+        }
+
+        clearAV01Playback()
+        isPlayerLoading = true
+        isPlayerEnded = false
+        usingAV01Playback = true
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let proxy = AV01LocalHLSProxy()
+                self.av01Proxy = proxy
+                let localURL = try await proxy.start(id: id)
+                guard self.usingAV01Playback else { return }
+
+                let asset = AVURLAsset(url: localURL)
+                let item = AVPlayerItem(asset: asset)
+                item.preferredPeakBitRate = 0
+                if #available(iOS 15.0, *) {
+                    item.preferredForwardBufferDuration = 3
+                }
+
+                let player = AVPlayer(playerItem: item)
+                player.automaticallyWaitsToMinimizeStalling = true
+
+                let layer = AVPlayerLayer(player: player)
+                layer.videoGravity = .resizeAspect
+                layer.frame = self.view.bounds
+                self.view.layer.addSublayer(layer)
+
+                self.av01Player = player
+                self.av01PlayerLayer = layer
+                self.isPlayerLoading = true
+                print("[IvyPlayAV01] PLAYER_START id=\(id) url=loopback")
+
+                self.av01TimeObserver = player.addPeriodicTimeObserver(
+                    forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
+                    queue: .main
+                ) { [weak self, weak player] time in
+                    guard let self, let player, let item = player.currentItem else { return }
+                    self.positionMs = Int64(max(CMTimeGetSeconds(time), 0) * 1000)
+                    let duration = CMTimeGetSeconds(item.duration)
+                    if duration.isFinite {
+                        self.durationMs = Int64(max(duration, 0) * 1000)
+                    }
+                    self.isPlayerLoading = item.status == .unknown
+                    self.isPlayerPlaying = player.rate > 0
+                    if let event = item.accessLog()?.events.last {
+                        if event.indicatedBitrate > 0 {
+                            print("[IvyPlayAV01] ACTIVE_VARIANT bitrate=\(Int64(event.indicatedBitrate))")
+                        }
+                    }
+                }
+
+                player.play()
+            } catch {
+                print("[IvyPlayAV01] RESOLVE_ERROR \(error)")
+                self.usingAV01Playback = false
+                self.isPlayerLoading = false
+                self.publishPlaybackError("AV01: \(error)")
+                self.av01Proxy?.stop()
+                self.av01Proxy = nil
+            }
+        }
+    }
+
+    private func clearAV01Playback() {
+        if let observer = av01TimeObserver, let player = av01Player {
+            player.removeTimeObserver(observer)
+        }
+        av01TimeObserver = nil
+        av01Player?.pause()
+        av01PlayerLayer?.removeFromSuperlayer()
+        av01PlayerLayer = nil
+        av01Player = nil
+        av01Proxy?.stop()
+        av01Proxy = nil
+        usingAV01Playback = false
+    }
+
+    private func publishPlaybackError(_ message: String) {
+        print("[IvyPlayAV01] ERROR \(message)")
+        isPlayerLoading = false
+        isPlayerEnded = true
     }
 
     private func isViewportReadyForPlayback(queuedAtUptime: TimeInterval) -> Bool {
@@ -615,6 +716,11 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func playPlayback() {
+        if usingAV01Playback {
+            av01Player?.play()
+            isPlayerPlaying = true
+            return
+        }
         guard mpv != nil else { return }
         publishNowPlayingForPlaybackSession()
         setFlag("pause", false)
@@ -623,6 +729,11 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func pausePlayback() {
+        if usingAV01Playback {
+            av01Player?.pause()
+            isPlayerPlaying = false
+            return
+        }
         guard mpv != nil else { return }
         setFlag("pause", true)
         isPlayerPlaying = false
@@ -630,6 +741,10 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func seekToMs(_ ms: Int64) {
+        if usingAV01Playback {
+            av01Player?.seek(to: CMTime(seconds: Double(ms) / 1000.0, preferredTimescale: 600))
+            return
+        }
         guard mpv != nil else { return }
         let seconds = Double(ms) / 1000.0
         command("seek", args: [String(format: "%.3f", seconds), "absolute"])
@@ -847,6 +962,7 @@ final class MPVPlayerViewController: UIViewController {
     }
 
     func destroyPlayer() {
+        clearAV01Playback()
         NotificationCenter.default.removeObserver(self)
         UIApplication.shared.endReceivingRemoteControlEvents()
         resignFirstResponder()
