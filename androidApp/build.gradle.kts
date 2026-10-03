@@ -80,10 +80,18 @@ android {
         create("playstore") {
             dimension = "distribution"
         }
+        create("tv") {
+            dimension = "distribution"
+            applicationId = "com.ivyplay.tv"
+        }
     }
 
     sourceSets.getByName("full") {
         manifest.srcFile("src/full/AndroidManifest.xml")
+        jniLibs.directories.add("../composeApp/src/full/jniLibs")
+    }
+    sourceSets.getByName("tv") {
+        manifest.srcFile("src/tv/AndroidManifest.xml")
         jniLibs.directories.add("../composeApp/src/full/jniLibs")
     }
 
@@ -143,7 +151,9 @@ android {
 
 androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
-        variant.applicationId.set("com.nuviodebug.com")
+        if (variant.flavorName != "tv") {
+            variant.applicationId.set("com.nuviodebug.com")
+        }
     }
 }
 
