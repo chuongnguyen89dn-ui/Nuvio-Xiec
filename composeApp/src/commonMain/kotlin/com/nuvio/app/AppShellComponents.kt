@@ -39,6 +39,8 @@ import com.nuvio.app.features.search.SearchScreen
 import com.nuvio.app.features.settings.AppBrandWordmark
 import com.nuvio.app.features.settings.SettingsScreen
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
+import com.nuvio.app.features.youtube.IvyPlayYouTubeHomeGate
+import com.nuvio.app.features.youtube.IvyPlayYouTubeHomeScreen
 import com.nuvio.app.navigation.AppRoute
 import com.nuvio.app.navigation.NuvioNavigator
 import kotlinx.coroutines.flow.Flow
@@ -128,18 +130,27 @@ internal fun AppTabHost(
             when (tab) {
                 AppScreenTab.Home -> {
                     key(state.homeContentGeneration) {
-                        HomeScreen(
-                            modifier = Modifier.fillMaxSize(),
-                            animateCollectionGifs = state.animateHomeCollectionGifs,
-                            scrollToTopRequests = requests.homeScrollToTopRequests,
-                            onCatalogClick = actions.onCatalogClick,
-                            onPosterClick = actions.onPosterClick,
-                            onPosterLongClick = actions.onPosterLongClick,
-                            onContinueWatchingClick = actions.onContinueWatchingClick,
-                            onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
-                            continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
-                            onFolderClick = actions.onFolderClick,
-                            onFirstCatalogRendered = actions.onInitialHomeContentRendered,
+                        IvyPlayYouTubeHomeGate(
+                            youtubeContent = {
+                                IvyPlayYouTubeHomeScreen(
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            },
+                            standardContent = {
+                                HomeScreen(
+                                    modifier = Modifier.fillMaxSize(),
+                                    animateCollectionGifs = state.animateHomeCollectionGifs,
+                                    scrollToTopRequests = requests.homeScrollToTopRequests,
+                                    onCatalogClick = actions.onCatalogClick,
+                                    onPosterClick = actions.onPosterClick,
+                                    onPosterLongClick = actions.onPosterLongClick,
+                                    onContinueWatchingClick = actions.onContinueWatchingClick,
+                                    onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
+                                    continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
+                                    onFolderClick = actions.onFolderClick,
+                                    onFirstCatalogRendered = actions.onInitialHomeContentRendered,
+                                )
+                            },
                         )
                     }
                 }
