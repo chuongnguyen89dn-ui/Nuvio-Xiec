@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.DisintegrationRequest
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioTokens
@@ -34,15 +33,12 @@ import com.nuvio.app.features.library.LibraryItem
 import com.nuvio.app.features.library.LibraryScreen
 import com.nuvio.app.features.library.LibrarySection
 import com.nuvio.app.features.library.LibrarySortOption
-import com.nuvio.app.features.profiles.IvyPlayContentMode
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileBackgroundBackdrop
-import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.search.SearchScreen
 import com.nuvio.app.features.settings.AppBrandWordmark
 import com.nuvio.app.features.settings.SettingsScreen
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
-import com.nuvio.app.features.youtube.IvyPlayYouTubeHomeScreen
 import com.nuvio.app.navigation.AppRoute
 import com.nuvio.app.navigation.NuvioNavigator
 import kotlinx.coroutines.flow.Flow
@@ -126,33 +122,25 @@ internal fun AppTabHost(
     modifier: Modifier = Modifier,
 ) {
     val tabStateHolder = rememberSaveableStateHolder()
-    val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
-    val isIvyPlayYouTubeProfile = profileState.activeProfile?.contentMode == IvyPlayContentMode.YOUTUBE
 
     TabContentHost(selectedTab = selectedTab, modifier = modifier.fillMaxSize()) { tab ->
         tabStateHolder.SaveableStateProvider(tab.name) {
             when (tab) {
                 AppScreenTab.Home -> {
-                    key(state.homeContentGeneration, isIvyPlayYouTubeProfile) {
-                        if (isIvyPlayYouTubeProfile) {
-                            IvyPlayYouTubeHomeScreen(
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        } else {
-                            HomeScreen(
-                                modifier = Modifier.fillMaxSize(),
-                                animateCollectionGifs = state.animateHomeCollectionGifs,
-                                scrollToTopRequests = requests.homeScrollToTopRequests,
-                                onCatalogClick = actions.onCatalogClick,
-                                onPosterClick = actions.onPosterClick,
-                                onPosterLongClick = actions.onPosterLongClick,
-                                onContinueWatchingClick = actions.onContinueWatchingClick,
-                                onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
-                                continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
-                                onFolderClick = actions.onFolderClick,
-                                onFirstCatalogRendered = actions.onInitialHomeContentRendered,
-                            )
-                        }
+                    key(state.homeContentGeneration) {
+                        HomeScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            animateCollectionGifs = state.animateHomeCollectionGifs,
+                            scrollToTopRequests = requests.homeScrollToTopRequests,
+                            onCatalogClick = actions.onCatalogClick,
+                            onPosterClick = actions.onPosterClick,
+                            onPosterLongClick = actions.onPosterLongClick,
+                            onContinueWatchingClick = actions.onContinueWatchingClick,
+                            onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
+                            continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
+                            onFolderClick = actions.onFolderClick,
+                            onFirstCatalogRendered = actions.onInitialHomeContentRendered,
+                        )
                     }
                 }
 
