@@ -1,11 +1,9 @@
 package com.nuvio.app
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.uikit.OnFocusBehavior
 import androidx.compose.ui.window.ComposeUIViewController
 import com.nuvio.app.core.ui.NativeProfileSwitcherController
-import com.nuvio.app.features.youtube.IvyPlayYouTubeHomeScreen
 import com.nuvio.app.navigation.AppRoute
 import platform.UIKit.UIColor
 import platform.UIKit.UIViewController
@@ -15,14 +13,6 @@ private val nuvioBackgroundColor = UIColor(red = 0.051, green = 0.051, blue = 0.
 @Suppress("unused")
 fun MainViewController(): UIViewController = nuvioComposeViewController {
     App()
-}
-
-/** Dedicated IvyPlay iOS root. This intentionally bypasses the Nuvio movie/TV shell. */
-@Suppress("unused")
-fun IvyPlayViewController(): UIViewController = nuvioComposeViewController {
-    MaterialTheme {
-        IvyPlayYouTubeHomeScreen()
-    }
 }
 
 @Suppress("unused")
