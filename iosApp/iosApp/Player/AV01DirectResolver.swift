@@ -126,25 +126,31 @@ enum AV01DirectResolver {
     }
 
     private static func rewritePlaylist(_ text: String, baseURL: URL, token: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: false).map { raw in
-            let line = String(raw)
-            if line.contains("URI=\"") {
-                return line.replacingOccurrences(
-                    of: #"URI="([^"]+)""#,
-                    with: { match in
-                        guard let r = match.range(at: 1),
-                              let url = URL(string: String(line[r]), relativeTo: baseURL)?.absoluteURL else { return match }
-                        return #"URI="#(signedURL(url, token: token).absoluteString)""#
-                    },
-                    options: .regularExpression
-                )
+        text.split(separator: "\\n", omittingEmptySubsequences: false).map { raw in
+            var line = String(raw)
+
+            // Rewrite every URI="..." attribute (EXT-X-MAP, EXT-X-KEY, etc.).
+            while let marker = line.range(of: "URI=\"") {
+                let valueStart = marker.upperBound
+                guard let quote = line[valueStart...].firstIndex(of: "\"") else { break }
+                let rawValue = String(line[valueStart..<quote])
+                guard let url = URL(string: rawValue, relativeTo: baseURL)?.absoluteURL else { break }
+                let signed = signedURL(url, token: token).absoluteString
+                line.replaceSubrange(valueStart..<quote, with: signed)
+                let nextStart = line.index(after: quote)
+                if nextStart >= line.endIndex { break }
+                if line[nextStart...].range(of: "URI=\"") == nil { break }
             }
-            guard !line.trimmingCharacters(in: .whitespaces).hasPrefix("#"),
-                  let url = URL(string: line.trimmingCharacters(in: .whitespacesAndNewlines), relativeTo: baseURL)?.absoluteURL else {
+
+            guard !line.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("#"),
+                  let url = URL(
+                    string: line.trimmingCharacters(in: .whitespacesAndNewlines),
+                    relativeTo: baseURL
+                  )?.absoluteURL else {
                 return line
             }
             return signedURL(url, token: token).absoluteString
-        }.joined(separator: "\n")
+        }.joined(separator: "\\n")
     }
 
     private static func signedURL(_ url: URL, token: String) -> URL {
