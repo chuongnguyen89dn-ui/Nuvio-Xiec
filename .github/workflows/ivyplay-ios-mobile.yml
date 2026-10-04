@@ -1,5 +1,6 @@
 name: IvyPlay iOS Mobile
 # Build trigger: IvyPlay 0.4.20 + AV01 native resolver
+# Build verification: AV01 resolver already wired in MPVPlayerBridge
 
 on:
   workflow_dispatch:
