@@ -4,6 +4,8 @@ struct AV01ResolvedPlayback {
     let localPlaylistURL: URL
     let tokenExpiresAt: TimeInterval
     let requestHeaders: [String: String]
+    // Determined from the response body we parsed as an EXT-M3U media playlist, not from the URL suffix.
+    let detectedDemuxer: String?
 }
 
 enum AV01DirectResolver {
@@ -117,7 +119,8 @@ enum AV01DirectResolver {
             requestHeaders: [
                 "User-Agent": userAgent,
                 "Referer": "https://www.av01.media/"
-            ]
+            ],
+            detectedDemuxer: media.contains("#EXTM3U") ? "hls" : nil
         )
     }
 
