@@ -53,7 +53,8 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
                     resolved.localPlaylistURL.absoluteString,
                     audioUrl: audioUrl,
                     requestHeaders: playbackHeaders,
-                    subtitles: subtitles
+                    subtitles: subtitles,
+                    detectedDemuxer: resolved.detectedDemuxer
                 )
             } catch {
                 print("[AV01] direct resolver failed: \(error.localizedDescription)")
@@ -299,6 +300,7 @@ private struct PendingLoadRequest {
     let requestHeaders: [String: String]
     let subtitles: [PluginSubtitle]
     let queuedAtUptime: TimeInterval
+    let detectedDemuxer: String?
 }
 
 // MARK: - MPV Player View Controller
@@ -586,13 +588,14 @@ final class MPVPlayerViewController: UIViewController {
 
     // MARK: - Playback API
 
-    func loadFile(_ urlString: String, audioUrl: String? = nil, requestHeaders: [String: String] = [:], subtitles: [PluginSubtitle] = []) {
+    func loadFile(_ urlString: String, audioUrl: String? = nil, requestHeaders: [String: String] = [:], subtitles: [PluginSubtitle] = [], detectedDemuxer: String? = nil) {
         let request = PendingLoadRequest(
             urlString: urlString,
             audioUrl: audioUrl,
             requestHeaders: requestHeaders,
             subtitles: subtitles,
-            queuedAtUptime: ProcessInfo.processInfo.systemUptime
+            queuedAtUptime: ProcessInfo.processInfo.systemUptime,
+            detectedDemuxer: detectedDemuxer
         )
 
         if Thread.isMainThread {
@@ -634,6 +637,14 @@ final class MPVPlayerViewController: UIViewController {
         isPlayerLoading = true
         isPlayerEnded = false
         applyAudioLanguagePreferences(preferredAudioLanguages)
+
+        // Match VLC-style content probing: when the resolver has already inspected the payload,
+        // tell libavformat what the bytes actually are instead of making it infer from a local URL.
+        // Clear the hint for ordinary sources so existing playback behavior is unchanged.
+        setStringProperty("demuxer-lavf-format", request.detectedDemuxer ?? "")
+        if let detectedDemuxer = request.detectedDemuxer {
+            print("[MPV] using content-detected demuxer: \(detectedDemuxer)")
+        }
         command("loadfile", args: [request.urlString, "replace"])
         if let audioUrl = request.audioUrl, !audioUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
