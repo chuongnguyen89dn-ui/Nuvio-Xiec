@@ -28,6 +28,7 @@ data class YouTubeHomeSection(
 
 data class YouTubeVideo(
     val videoId: String,
+    val addonMetaId: String? = null,
     val title: String,
     val url: String,
     val thumbnail: String? = null,
@@ -118,6 +119,7 @@ object YouTubeChannelResolver {
             if (id.isBlank()) return@mapNotNull null
             YouTubeVideo(
                 videoId = id,
+                addonMetaId = item.string("addonMetaId") ?: item.string("metaId") ?: item.string("id"),
                 title = item.string("title").orEmpty(),
                 url = item.string("url") ?: "https://www.youtube.com/watch?v=$id",
                 thumbnail = item.string("thumbnail"),
