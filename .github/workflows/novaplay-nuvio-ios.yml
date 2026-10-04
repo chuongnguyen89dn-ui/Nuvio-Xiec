@@ -1,10 +1,10 @@
-name: NovaPlay original Nuvio iOS
+name: IvyPlay iOS Mobile
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - ivyplay-mobile
     tags:
       - 'ivyplay-ios-v*'
     paths:
@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  original-nuvio:
+  ivyplay-mobile:
     permissions:
       contents: write
     runs-on: macos-15
@@ -33,7 +33,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Configure IvyPlay Nuvio Cloud account sync
+      - name: Configure account sync
         shell: bash
         run: |
           cat > local.properties <<'EOF'
@@ -41,84 +41,41 @@ jobs:
           NUVIO_SUPABASE_ANON_KEY=sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN
           NUVIO_SUPABASE_FALLBACK_URL=
           EOF
-      - name: Fetch original Nuvio player dependency
+      - name: Fetch MPVKit
         run: |
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
           test -f MPVKit/Package.swift
-      - name: Build ORIGINAL Nuvio iPhone UI (simulator)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        shell: bash
-        run: |
-          set -o pipefail
-          chmod +x gradlew
-          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/ios-simulator CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-simulator.log
-      - name: Launch actual app and capture screenshot
-        if: ${{ github.event_name == 'workflow_dispatch' }}
+      - name: Build IvyPlay unsigned iPhone IPA
         shell: bash
         run: |
           set -euo pipefail
-          APP="$(find build/ios-simulator/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' -type d | head -1)"
-          test -n "$APP"
-          UDID="$(python3 - <<'PY'
-          import json,subprocess
-          data=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))
-          devices=[d for v in data['devices'].values() for d in v if 'iPhone' in d['name']]
-          if not devices: raise SystemExit('No iPhone simulator')
-          print(devices[0]['udid'])
-          PY
-          )"
-          xcrun simctl boot "$UDID" || true
-          # Do not let simulator proof block the actual IPA build forever.
-          READY=0
-          for i in {1..60}; do
-            if xcrun simctl list devices | grep "$UDID" | grep -q "(Booted)"; then READY=1; break; fi
-            sleep 2
-          done
-          if [ "$READY" -ne 1 ]; then
-            echo "Simulator boot timed out; skipping screenshot proof."
-            exit 0
-          fi
-          xcrun simctl install "$UDID" "$APP"
-          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
-          xcrun simctl launch "$UDID" "$BUNDLE_ID" | tee simulator-launch.log
-          sleep 15
-          mkdir -p build/nuvio-screenshots
-          xcrun simctl io "$UDID" screenshot build/nuvio-screenshots/original-nuvio-home.png
-          xcrun simctl spawn "$UDID" log show --last 2m --style compact --predicate 'process == "Nuvio"' > build/nuvio-screenshots/runtime.log || true
-      - name: Upload actual UI screenshot and diagnostic logs
-        if: ${{ always() && github.event_name == 'workflow_dispatch' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: NovaPlay-original-Nuvio-ui-proof
-          path: |
-            build/nuvio-screenshots/
-            simulator-launch.log
-            build-simulator.log
-          retention-days: 7
-      - name: Build ORIGINAL Nuvio unsigned iPhone IPA
-        shell: bash
-        run: |
-          set -o pipefail
+          chmod +x gradlew
           xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
             -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build/ios-device CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-iphone.log
           APP="$(find build/ios-device/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
           test -n "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          DISPLAY_NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Info.plist")
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")
+          echo "bundle=$BUNDLE_ID name=$DISPLAY_NAME version=$VERSION"
+          test "$BUNDLE_ID" = "com.ivyplay.iphone"
+          test "$DISPLAY_NAME" = "IvyPlay"
+          test "$VERSION" = "0.4.20"
           mkdir -p Payload
           cp -R "$APP" Payload/
-          ditto -c -k --sequesterRsrc --keepParent Payload NovaPlay-Nuvio-original-unsigned.ipa
-      - name: Upload full original Nuvio IPA
+          ditto -c -k --sequesterRsrc --keepParent Payload IvyPlay-unsigned.ipa
+      - name: Upload IvyPlay IPA
         uses: actions/upload-artifact@v4
         with:
-          name: NovaPlay-Nuvio-original-iPhone-unsigned
-          path: NovaPlay-Nuvio-original-unsigned.ipa
+          name: IvyPlay-iPhone-unsigned
+          path: |
+            IvyPlay-unsigned.ipa
+            build-iphone.log
           retention-days: 7
-      - name: Stage IvyPlay IPA for versioned releases
+      - name: Stage versioned release
         if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
         run: |
-          cp NovaPlay-Nuvio-original-unsigned.ipa IvyPlay-unsigned.ipa
           shasum -a 256 IvyPlay-unsigned.ipa > IvyPlay-unsigned.ipa.sha256
       - name: Publish IvyPlay iOS release
         if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
@@ -127,4 +84,3 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 \
             --title "IvyPlay iOS ${GITHUB_REF_NAME}" --generate-notes --verify-tag
-
