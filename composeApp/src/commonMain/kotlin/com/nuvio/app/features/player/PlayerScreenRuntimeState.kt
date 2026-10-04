@@ -188,6 +188,7 @@ internal class PlayerScreenRuntime(
     var showSubtitleModal by mutableStateOf(false)
     var showVideoSettingsModal by mutableStateOf(false)
     var showYouTubeSettings by mutableStateOf(false)
+    var youtubeSettingsPage by mutableStateOf(YouTubeSettingsPage.MAIN)
     var videoQualities by mutableStateOf(listOf(PlayerVideoQuality(null, "Auto", true)))
     var audioTracks by mutableStateOf<List<AudioTrack>>(emptyList())
     var subtitleTracks by mutableStateOf<List<SubtitleTrack>>(emptyList())
