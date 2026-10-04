@@ -247,6 +247,34 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
+        if (isYouTubeProfilePlayback) {
+            YouTubeMobilePlayerControls(
+                title = title,
+                snapshot = playbackSnapshot,
+                displayedPositionMs = displayedPositionMs,
+                onBack = {
+                    flushWatchProgress()
+                    args.onBack()
+                },
+                onTogglePlayback = { togglePlayback() },
+                onSeekBack = { seekBy(-10_000L) },
+                onSeekForward = { seekBy(10_000L) },
+                onSeek = { positionMs ->
+                    playerController?.seekTo(positionMs)
+                    scheduleProgressSyncAfterSeek()
+                },
+                onSettings = {
+                    refreshTracks()
+                    videoQualities = playerController?.getVideoQualities().orEmpty()
+                        .ifEmpty { listOf(PlayerVideoQuality(null, "Auto", true)) }
+                    youtubeSettingsPage = YouTubeSettingsPage.MAIN
+                    showYouTubeSettings = true
+                    controlsVisible = true
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+            return@AnimatedVisibility
+        }
         PlayerControlsShell(
             title = title,
             streamTitle = activeStreamTitle,
