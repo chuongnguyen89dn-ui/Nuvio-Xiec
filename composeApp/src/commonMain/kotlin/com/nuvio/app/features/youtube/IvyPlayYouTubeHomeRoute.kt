@@ -19,7 +19,7 @@ fun IvyPlayYouTubeHomeRoute(
     var channels by remember { mutableStateOf<List<YouTubeChannelSnapshot>>(emptyList()) }
 
     LaunchedEffect(Unit) {
-        val loaded = IvyPlayYouTubeFeedRepository.loadDefaultChannels()
+        val loaded = IvyPlayYouTubeAddonRepository.loadChannels()
         if (loaded.isNotEmpty()) channels = loaded
     }
 
