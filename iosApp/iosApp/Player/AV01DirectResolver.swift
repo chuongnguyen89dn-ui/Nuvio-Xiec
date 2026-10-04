@@ -6,50 +6,55 @@ struct AV01ResolvedPlayback {
 }
 
 enum AV01DirectResolver {
-    private static let baseHost = "www.av01.media"
+    private static let av01Host = "www.av01.media"
     private static let cdnHostSuffix = "iw01.xyz"
     private static let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1"
 
     static func canResolve(_ urlString: String) -> Bool {
-        guard let url = URL(string: urlString),
-              url.host?.lowercased() == baseHost else { return false }
-        return url.path.contains("/api/v1/videos/") && url.path.hasSuffix("/manifest/master.m3u8")
+        guard let url = URL(string: urlString) else { return false }
+        if url.host?.lowercased() == av01Host,
+           url.path.contains("/api/v1/videos/"),
+           url.path.hasSuffix("/manifest/master.m3u8") {
+            return true
+        }
+        let parts = url.path.split(separator: "/")
+        return parts.count >= 3 && parts[0] == "av01" && Int(parts[1]) != nil && parts.last == "master.m3u8"
     }
 
     static func resolve(_ source: String) async throws -> AV01ResolvedPlayback {
         guard let sourceURL = URL(string: source),
               let videoID = extractVideoID(sourceURL) else {
-            throw NSError(domain: "AV01DirectResolver", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsupported AV01 manifest URL"])
+            throw NSError(domain: "AV01DirectResolver", code: 1, userInfo: [NSLocalizedDescriptionKey: "Unsupported AV01 stream URL"])
         }
 
         let session = URLSession(configuration: .ephemeral)
+
         var geoRequest = URLRequest(url: URL(string: "https://files.iw01.xyz/edge/geo.js?json")!)
         geoRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         geoRequest.setValue("https://www.av01.media/", forHTTPHeaderField: "Referer")
-
         let (geoData, geoResponse) = try await session.data(for: geoRequest)
         try requireHTTP(geoResponse, "geo.js")
         guard
             let geo = try JSONSerialization.jsonObject(with: geoData) as? [String: Any],
             let tokenV2 = geo["token_v2"] as? String,
-            let expires = geo["expires"] as? String,
+            let expiresValue = geo["expires"],
             !tokenV2.isEmpty
         else {
             throw NSError(domain: "AV01DirectResolver", code: 2, userInfo: [NSLocalizedDescriptionKey: "AV01 geo response missing token_v2/expires"])
         }
+        let expires = String(describing: expiresValue)
 
-        var components = URLComponents(string: "https://customers.iw01.xyz/api/v1/videos/\(videoID)/cdn-access")!
-        components.queryItems = [
+        var accessComponents = URLComponents(string: "https://customers.iw01.xyz/api/v1/videos/\(videoID)/cdn-access")!
+        accessComponents.queryItems = [
             URLQueryItem(name: "token_v2", value: tokenV2),
             URLQueryItem(name: "expires", value: expires),
-            URLQueryItem(name: "ip", value: geo["ip"] as? String)
+            URLQueryItem(name: "ip", value: geo["ip"].map { String(describing: $0) })
         ].filter { $0.value != nil }
 
-        var accessRequest = URLRequest(url: components.url!)
+        var accessRequest = URLRequest(url: accessComponents.url!)
         accessRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         accessRequest.setValue("application/json,*/*", forHTTPHeaderField: "Accept")
         accessRequest.setValue("https://www.av01.media/", forHTTPHeaderField: "Referer")
-
         let (accessData, accessResponse) = try await session.data(for: accessRequest)
         try requireHTTP(accessResponse, "cdn-access")
         guard
@@ -63,51 +68,79 @@ enum AV01DirectResolver {
         let claims = decodeJWTPayload(accessToken)
         let exp = (claims["exp"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970 + 3600
 
-        var manifestRequest = URLRequest(url: sourceURL)
-        manifestRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        manifestRequest.setValue("https://www.av01.media/", forHTTPHeaderField: "Referer")
-        let (masterData, masterResponse) = try await session.data(for: manifestRequest)
+        let masterURL = URL(string: "https://www.av01.media/api/v1/videos/\(videoID)/manifest/master.m3u8")!
+        var masterRequest = URLRequest(url: masterURL)
+        masterRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        masterRequest.setValue("https://www.av01.media/", forHTTPHeaderField: "Referer")
+        let (masterData, masterResponse) = try await session.data(for: masterRequest)
         try requireHTTP(masterResponse, "master.m3u8")
+        guard let master = String(data: masterData, encoding: .utf8), !master.isEmpty else {
+            throw NSError(domain: "AV01DirectResolver", code: 4, userInfo: [NSLocalizedDescriptionKey: "AV01 master playlist empty"])
+        }
 
-        let master = String(data: masterData, encoding: .utf8) ?? ""
-        let variant = chooseHighestBandwidthVariant(master, baseURL: sourceURL)
-        let mediaURL = variant ?? sourceURL
+        guard let mediaURL = chooseHighestBandwidthVariant(master, baseURL: masterURL) else {
+            throw NSError(domain: "AV01DirectResolver", code: 5, userInfo: [NSLocalizedDescriptionKey: "AV01 master has no playable variant"])
+        }
 
         var mediaRequest = URLRequest(url: mediaURL)
         mediaRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         mediaRequest.setValue("https://www.av01.media/", forHTTPHeaderField: "Referer")
         let (mediaData, mediaResponse) = try await session.data(for: mediaRequest)
         try requireHTTP(mediaResponse, "media.m3u8")
+        guard let media = String(data: mediaData, encoding: .utf8), !media.isEmpty else {
+            throw NSError(domain: "AV01DirectResolver", code: 6, userInfo: [NSLocalizedDescriptionKey: "AV01 media playlist empty"])
+        }
 
-        let media = String(data: mediaData, encoding: .utf8) ?? ""
         let signed = rewritePlaylist(media, baseURL: mediaURL, token: accessToken)
+        guard let firstObject = firstPlayableObject(in: signed, baseURL: mediaURL) else {
+            throw NSError(domain: "AV01DirectResolver", code: 7, userInfo: [NSLocalizedDescriptionKey: "AV01 media playlist contains no init/segment URI"])
+        }
+
+        var probeRequest = URLRequest(url: firstObject)
+        probeRequest.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        probeRequest.setValue("https://www.av01.media/", forHTTPHeaderField: "Referer")
+        let (_, probeResponse) = try await session.data(for: probeRequest)
+        try requireHTTP(probeResponse, "first media object")
+
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("av01-playback", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("\(videoID)-\(UUID().uuidString).m3u8")
-        try signed.data(using: .utf8)!.write(to: file, options: .atomic)
+        guard let signedData = signed.data(using: .utf8) else {
+            throw NSError(domain: "AV01DirectResolver", code: 8, userInfo: [NSLocalizedDescriptionKey: "Unable to encode signed AV01 playlist"])
+        }
+        try signedData.write(to: file, options: .atomic)
 
         return AV01ResolvedPlayback(localPlaylistURL: file, tokenExpiresAt: exp)
     }
 
     private static func extractVideoID(_ url: URL) -> String? {
         let parts = url.path.split(separator: "/")
-        guard let apiIndex = parts.firstIndex(of: "api"),
-              apiIndex + 3 < parts.count,
-              parts[apiIndex + 1] == "v1",
-              parts[apiIndex + 2] == "videos" else { return nil }
-        return String(parts[apiIndex + 3])
+        if let apiIndex = parts.firstIndex(of: "api"),
+           apiIndex + 3 < parts.count,
+           parts[apiIndex + 1] == "v1",
+           parts[apiIndex + 2] == "videos",
+           Int(parts[apiIndex + 3]) != nil {
+            return String(parts[apiIndex + 3])
+        }
+        if parts.count >= 3, parts[0] == "av01", Int(parts[1]) != nil {
+            return String(parts[1])
+        }
+        return nil
     }
 
     private static func chooseHighestBandwidthVariant(_ master: String, baseURL: URL) -> URL? {
-        let lines = master.split(whereSeparator: \.isNewline).map(String.init)
+        let lines = master.split(whereSeparator: { $0.isNewline }).map(String.init)
         var best: (bandwidth: Int, url: URL)?
         var pendingBandwidth = 0
-        for line in lines {
+        for rawLine in lines {
+            let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
             if line.hasPrefix("#EXT-X-STREAM-INF:") {
                 pendingBandwidth = attributeInt("BANDWIDTH", in: line) ?? 0
                 continue
             }
-            guard pendingBandwidth > 0, !line.hasPrefix("#"),
+            guard pendingBandwidth > 0,
+                  !line.isEmpty,
+                  !line.hasPrefix("#"),
                   let url = URL(string: line, relativeTo: baseURL)?.absoluteURL else { continue }
             if best == nil || pendingBandwidth > best!.bandwidth {
                 best = (pendingBandwidth, url)
@@ -126,31 +159,47 @@ enum AV01DirectResolver {
     }
 
     private static func rewritePlaylist(_ text: String, baseURL: URL, token: String) -> String {
-        text.split(separator: "\\n", omittingEmptySubsequences: false).map { raw in
+        text.split(whereSeparator: { $0.isNewline }, omittingEmptySubsequences: false).map { raw in
             var line = String(raw)
 
-            // Rewrite every URI="..." attribute (EXT-X-MAP, EXT-X-KEY, etc.).
-            while let marker = line.range(of: "URI=\"") {
+            var searchStart = line.startIndex
+            while let marker = line.range(of: "URI=\"", range: searchStart..<line.endIndex) {
                 let valueStart = marker.upperBound
                 guard let quote = line[valueStart...].firstIndex(of: "\"") else { break }
                 let rawValue = String(line[valueStart..<quote])
                 guard let url = URL(string: rawValue, relativeTo: baseURL)?.absoluteURL else { break }
                 let signed = signedURL(url, token: token).absoluteString
                 line.replaceSubrange(valueStart..<quote, with: signed)
-                let nextStart = line.index(after: quote)
-                if nextStart >= line.endIndex { break }
-                if line[nextStart...].range(of: "URI=\"") == nil { break }
+                searchStart = line.index(valueStart, offsetBy: signed.count, limitedBy: line.endIndex) ?? line.endIndex
             }
 
-            guard !line.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("#"),
-                  let url = URL(
-                    string: line.trimmingCharacters(in: .whitespacesAndNewlines),
-                    relativeTo: baseURL
-                  )?.absoluteURL else {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty,
+                  !trimmed.hasPrefix("#"),
+                  let url = URL(string: trimmed, relativeTo: baseURL)?.absoluteURL else {
                 return line
             }
             return signedURL(url, token: token).absoluteString
-        }.joined(separator: "\\n")
+        }.joined(separator: "\n")
+    }
+
+    private static func firstPlayableObject(in playlist: String, baseURL: URL) -> URL? {
+        for rawLine in playlist.split(whereSeparator: { $0.isNewline }) {
+            let line = String(rawLine).trimmingCharacters(in: .whitespacesAndNewlines)
+            if let marker = line.range(of: "URI=\"") {
+                let valueStart = marker.upperBound
+                if let quote = line[valueStart...].firstIndex(of: "\"") {
+                    let value = String(line[valueStart..<quote])
+                    if let url = URL(string: value, relativeTo: baseURL)?.absoluteURL {
+                        return url
+                    }
+                }
+            }
+            if !line.isEmpty, !line.hasPrefix("#"), let url = URL(string: line, relativeTo: baseURL)?.absoluteURL {
+                return url
+            }
+        }
+        return nil
     }
 
     private static func signedURL(_ url: URL, token: String) -> URL {
