@@ -133,6 +133,7 @@ import com.nuvio.app.features.player.prepareExternalPlayerLaunch
 import com.nuvio.app.features.player.LockPlayerToLandscape
 import com.nuvio.app.features.player.HidePlayerSystemBars
 import com.nuvio.app.features.player.rememberExternalPlayerLauncher
+import com.nuvio.app.features.profiles.IvyPlayContentMode
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.settings.AccountSettingsScreen
 import com.nuvio.app.features.settings.AddonsSettingsScreen
@@ -495,8 +496,10 @@ internal fun MainAppContent(
         initialHomeReady,
         profileSwitchLoading,
         useNativeNavigation,
+        profileState.activeProfile?.contentMode,
     ) {
         val visible = !useNativeNavigation &&
+            profileState.activeProfile?.contentMode != IvyPlayContentMode.YOUTUBE &&
             liquidGlassNativeTabBarSupported &&
             liquidGlassNativeTabBarEnabled &&
             initialHomeReady &&
