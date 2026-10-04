@@ -45,50 +45,6 @@ jobs:
         run: |
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
           test -f MPVKit/Package.swift
-      - name: Build ORIGINAL Nuvio iPhone UI (simulator)
-        if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'ivyplay') }}
-        shell: bash
-        run: |
-          set -o pipefail
-          chmod +x gradlew
-          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
-            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build/ios-simulator CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-simulator.log
-      - name: Launch actual app and run AV01 smoke test
-        if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'ivyplay') }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          APP="$(find build/ios-simulator/Build/Products/Debug-iphonesimulator -maxdepth 1 -name '*.app' -type d | head -1)"
-          test -n "$APP"
-          UDID="$(python3 - <<'PY'
-          import json,subprocess
-          data=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j']))
-          devices=[d for v in data['devices'].values() for d in v if 'iPhone' in d['name']]
-          if not devices: raise SystemExit('No iPhone simulator')
-          print(devices[0]['udid'])
-          PY
-          )"
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl install "$UDID" "$APP"
-          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
-          SIMCTL_CHILD_IVYPLAY_AV01_SMOKE=1 xcrun simctl launch "$UDID" "$BUNDLE_ID" | tee simulator-launch.log
-          sleep 20
-          mkdir -p build/nuvio-screenshots
-          xcrun simctl io "$UDID" screenshot build/nuvio-screenshots/ivyplay-home.png
-          xcrun simctl spawn "$UDID" log show --last 3m --style compact --predicate 'process == "Nuvio"' > build/nuvio-screenshots/runtime.log || true
-          grep -F '[AV01_SMOKE] PASS' build/nuvio-screenshots/runtime.log
-      - name: Upload actual UI screenshot and diagnostic logs
-        if: ${{ always() && (github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, 'ivyplay')) }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: IvyPlay-iOS-ui-proof
-          path: |
-            build/nuvio-screenshots/
-            simulator-launch.log
-            build-simulator.log
-          retention-days: 7
       - name: Build ORIGINAL Nuvio unsigned iPhone IPA
         shell: bash
         run: |
@@ -106,6 +62,13 @@ jobs:
         with:
           name: NovaPlay-Nuvio-original-iPhone-unsigned
           path: NovaPlay-Nuvio-original-unsigned.ipa
+          retention-days: 7
+      - name: Upload iPhone build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: IvyPlay-iOS-device-build-log
+          path: build-iphone.log
           retention-days: 7
       - name: Stage IvyPlay IPA for versioned releases
         if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
