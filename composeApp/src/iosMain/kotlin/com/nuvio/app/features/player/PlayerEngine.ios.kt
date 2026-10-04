@@ -134,6 +134,17 @@ actual fun PlatformPlayerSurface(
                 bridge.setMuted(muted)
             }
 
+            override fun getVideoQualities(): List<PlayerVideoQuality> =
+                normalizeVideoQualities(
+                    heights = (0 until bridge.getVideoQualityCount()).map { bridge.getVideoQualityHeight(it) },
+                    selectedHeight = bridge.getSelectedVideoQualityHeight().takeIf { it > 0 },
+                )
+
+            override fun selectVideoQuality(height: Int?) {
+                bridge.selectVideoQuality(height ?: 0)
+                Logger.i(TAG) { "MANUAL_QUALITY_SELECTED quality=${youtubeQualityLabel(height)}" }
+            }
+
             override fun getAudioTracks(): List<AudioTrack> {
                 val count = bridge.getAudioTrackCount()
                 return (0 until count).map { i ->
