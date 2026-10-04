@@ -2,6 +2,11 @@ package com.nuvio.app.features.player
 
 import androidx.compose.ui.Modifier
 
+internal enum class PlayerPlaybackContext {
+    IVY,
+    YOUTUBE_PROFILE,
+}
+
 internal data class PlayerScreenArgs(
     val profileId: Int,
     val title: String,
@@ -39,4 +44,5 @@ internal data class PlayerScreenArgs(
     val initialPositionMs: Long,
     val initialProgressFraction: Float?,
     val contentLanguage: String? = null,
+    val playbackContext: PlayerPlaybackContext = PlayerPlaybackContext.IVY,
 )
