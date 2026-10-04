@@ -144,6 +144,25 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         playerVC?.syncVideoSurfaceLayout(size: CGSize(width: width, height: height))
     }
 
+    // Video quality tracks reported by mpv. Never synthesize unavailable heights.
+    private func videoQualityTracks() -> [(id: Int, height: Int, selected: Bool)] {
+        guard let playerVC else { return [] }
+        return playerVC.videoQualityTracks()
+    }
+
+    func getVideoQualityCount() -> Int32 { Int32(videoQualityTracks().count) }
+    func getVideoQualityHeight(at: Int32) -> Int32 {
+        let tracks = videoQualityTracks()
+        guard Int(at) >= 0, Int(at) < tracks.count else { return 0 }
+        return Int32(tracks[Int(at)].height)
+    }
+    func getSelectedVideoQualityHeight() -> Int32 {
+        Int32(videoQualityTracks().first(where: { $0.selected })?.height ?? -1)
+    }
+    func selectVideoQuality(height: Int32) {
+        ensurePlayerViewController().selectVideoQuality(height: Int(height))
+    }
+
     // Audio tracks
     func getAudioTrackCount() -> Int32 { Int32(playerVC?.audioTracks.count ?? 0) }
     func getAudioTrackIndex(at: Int32) -> Int32 {
@@ -758,6 +777,32 @@ final class MPVPlayerViewController: UIViewController {
             setStringProperty("panscan", "0.0")
             setStringProperty("video-unscaled", "no")
         }
+    }
+
+    func videoQualityTracks() -> [(id: Int, height: Int, selected: Bool)] {
+        guard mpv != nil else { return [] }
+        let count = getInt("track-list/count")
+        var tracks: [(id: Int, height: Int, selected: Bool)] = []
+        for i in 0..<count {
+            guard getString("track-list/\(i)/type") == "video" else { continue }
+            let height = getInt("track-list/\(i)/demux-h")
+            let id = getInt("track-list/\(i)/id")
+            guard height > 0, id > 0 else { continue }
+            tracks.append((id: id, height: height, selected: getFlag("track-list/\(i)/selected")))
+        }
+        var seen = Set<Int>()
+        return tracks.filter { seen.insert($0.height).inserted }.sorted { $0.height > $1.height }
+    }
+
+    func selectVideoQuality(height: Int) {
+        guard mpv != nil else { return }
+        guard height > 0 else {
+            setStringProperty("vid", "auto")
+            return
+        }
+        guard let track = videoQualityTracks().first(where: { $0.height == height }) else { return }
+        var id = Int64(track.id)
+        mpv_set_property(mpv, "vid", MPV_FORMAT_INT64, &id)
     }
 
     // MARK: - Track selection
