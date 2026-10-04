@@ -1,5 +1,7 @@
 package com.nuvio.app.features.streams
 
+import com.nuvio.app.features.player.PlayerPlaybackContext
+
 data class StreamLaunch(
     val profileId: Int,
     val type: String,
@@ -19,6 +21,7 @@ data class StreamLaunch(
     val resumeProgressFraction: Float? = null,
     val manualSelection: Boolean = false,
     val startFromBeginning: Boolean = false,
+    val playbackContext: PlayerPlaybackContext = PlayerPlaybackContext.IVY,
 )
 
 object StreamLaunchStore {
