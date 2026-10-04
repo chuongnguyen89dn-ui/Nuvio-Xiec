@@ -10,7 +10,6 @@ import com.nuvio.app.features.profiles.ProfileRepository
  * Single routing gate used by the mobile Home surface.
  * YouTube profiles never fall through to the movie/TV home.
  */
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun IvyPlayYouTubeHomeGate(
     youtubeContent: @Composable () -> Unit,
@@ -18,7 +17,7 @@ fun IvyPlayYouTubeHomeGate(
 ) {
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
     when (profileState.activeProfile?.contentMode ?: IvyPlayContentMode.STANDARD) {
-        IvyPlayContentMode.YOUTUBE -> IvyPlayYouTubeHomeRoute()
+        IvyPlayContentMode.YOUTUBE -> youtubeContent()
         IvyPlayContentMode.STANDARD -> standardContent()
     }
 }
