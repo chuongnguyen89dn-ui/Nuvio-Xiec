@@ -135,7 +135,7 @@ Fix those issues on Nuvio without removing the existing AV01 work. Build/test th
 
 Source commit: `436662ac590028398dd632fdbdf449fc910ae597`.
 iOS run: #125, https://github.com/chuongnguyen89dn-ui/Nuvio-Xiec/actions/runs/37203416637.
-Status at this checkpoint: building, NOT accepted as a working device build.
+Status: run #125 completed successfully at 2026-10-04 13:08 UTC. Compilation/package verification passed; device interaction acceptance remains pending.
 
 Audit findings:
 - Mobile and TV empty states hard-coded two channel names; the unused RSS repository also contained default channels.
@@ -162,3 +162,15 @@ Validation/limits:
 - Device acceptance still required: no-addon state, install/disable/remove addon, tap channel/video, player return, close to Nuvio, switch profile.
 - Search currently covers loaded addon catalog data. Existing catalog adapter supplies videos; Shorts is empty unless actual Shorts data is supplied.
 - Do not claim AV01 fixed or device interactions verified from CI.
+
+
+### Run #125 verified result
+
+- Source: `436662ac590028398dd632fdbdf449fc910ae597`; workflow result: SUCCESS.
+- Build log confirms `BUILD SUCCEEDED`, product `Nuvio.app`, target `iosApp`, device arm64, bundle `com.nuvio.app`.
+- The packaging step successfully checked the built Info.plist bundle ID before copying that app into Payload.
+- Artifact: `Nuvio-iPhone-unsigned`, ID `11304570963`, 59,774,258 bytes; includes `Nuvio-unsigned.ipa` and `Nuvio-build-identity.txt`.
+- Download: https://github.com/chuongnguyen89dn-ui/Nuvio-Xiec/actions/runs/37203416637/artifacts/11304570963
+- Artifact SHA-256 reported by GitHub: `aa766654419309b2b6dce4a8476b08b710bdf4e7621f6317b837f7128acd4b81`.
+- CI/bundle identity verified from completed workflow/logs. Local archive inspection was unavailable because the artifact download URL returned HTTP 403 in the execution environment; do not claim local IPA extraction.
+- Next acceptance step is testing the new IPA on the user's iPhone: no addon, install addon, channel/video taps, player Back, Nuvio Close and addon removal/profile switch. AV01 diagnosis remains next after that acceptance.
