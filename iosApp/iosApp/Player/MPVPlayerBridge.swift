@@ -23,12 +23,40 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
 
     func loadFile(url: String) { ensurePlayerViewController().loadFile(url) }
     func loadFileWithAudio(videoUrl: String, audioUrl: String?, headersJson: String?, subtitlesJson: String?) {
-        ensurePlayerViewController().loadFile(
-            videoUrl,
-            audioUrl: audioUrl,
-            requestHeaders: parseRequestHeaders(headersJson),
-            subtitles: parseSubtitles(subtitlesJson)
-        )
+        let player = ensurePlayerViewController()
+        let headers = parseRequestHeaders(headersJson)
+        let subtitles = parseSubtitles(subtitlesJson)
+
+        guard AV01DirectResolver.canResolve(videoUrl) else {
+            player.loadFile(
+                videoUrl,
+                audioUrl: audioUrl,
+                requestHeaders: headers,
+                subtitles: subtitles
+            )
+            return
+        }
+
+        Task { @MainActor in
+            do {
+                let resolved = try await AV01DirectResolver.resolve(videoUrl)
+                print("[AV01] direct resolver succeeded; token expiry=\(resolved.tokenExpiresAt)")
+                player.loadFile(
+                    resolved.localPlaylistURL.absoluteString,
+                    audioUrl: audioUrl,
+                    requestHeaders: headers,
+                    subtitles: subtitles
+                )
+            } catch {
+                print("[AV01] direct resolver failed: \(error.localizedDescription)")
+                player.loadFile(
+                    videoUrl,
+                    audioUrl: audioUrl,
+                    requestHeaders: headers,
+                    subtitles: subtitles
+                )
+            }
+        }
     }
 
     private func parseSubtitles(_ json: String?) -> [PluginSubtitle] {
