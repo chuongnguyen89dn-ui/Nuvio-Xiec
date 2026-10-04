@@ -55,6 +55,14 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func setPlaybackSpeed(speed: Float) { playerVC?.setSpeed(speed) }
     func setMuted(muted: Bool) { playerVC?.setMuted(muted) }
     func setResizeMode(mode: Int32) { playerVC?.setResize(Int(mode)) }
+    func applyAudioLanguagePreferences(languages: [String]) {}
+    func applySubtitleStyle(textColor: String, backgroundColor: String, outlineColor: String, outlineSize: Float, bold: Bool, fontSize: Float, subPos: Int32, stripSdh: Bool) {}
+    func clearExternalSubtitle() {}
+    func clearExternalSubtitleAndSelect(trackId: Int32) { playerVC?.selectSubtitleTrack(trackId) }
+    func destroy() { playerVC?.stopPlayback(); playerVC = nil }
+    func getPlaybackSpeed() -> Float { playerVC?.playbackSpeed ?? 1.0 }
+    func setSubtitleDelayMs(delayMs: Int32) { playerVC?.setSubtitleDelayMs(delayMs) }
+    func setSubtitleUrl(url: String) { playerVC?.setSubtitleUrl(url) }
     func syncVideoSurfaceLayout(width: Double, height: Double) {}
 
     func getVideoQualityCount() -> Int32 { 0 }
@@ -68,7 +76,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func getAudioTrackLabel(at: Int32) -> String { "" }
     func getAudioTrackLang(at: Int32) -> String { "" }
     func isAudioTrackSelected(at: Int32) -> Bool { false }
-    func selectAudioTrack(trackId: String) { playerVC?.selectAudioTrack(trackId) }
+    func selectAudioTrack(trackId: Int32) { playerVC?.selectAudioTrack(trackId) }
 
     func getSubtitleTrackCount() -> Int32 { 0 }
     func getSubtitleTrackIndex(at: Int32) -> Int32 { 0 }
@@ -76,7 +84,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func getSubtitleTrackLabel(at: Int32) -> String { "" }
     func getSubtitleTrackLang(at: Int32) -> String { "" }
     func isSubtitleTrackSelected(at: Int32) -> Bool { false }
-    func selectSubtitleTrack(trackId: String) { playerVC?.selectSubtitleTrack(trackId) }
+    func selectSubtitleTrack(trackId: Int32) { playerVC?.selectSubtitleTrack(trackId) }
     func disableSubtitles() {}
 
     func getIsPlaying() -> Bool { playerVC?.isPlaying ?? false }
@@ -89,7 +97,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func getErrorMessage() -> String { playerVC?.errorMessage ?? "" }
 }
 
-private struct VLCSubtitle { let url: String }
+struct VLCSubtitle { let url: String }
 
 // Keep the historical class name because NowPlayingController and the Compose host
 // use it as their UI contract. Playback underneath is libVLC, not mpv.
@@ -146,13 +154,16 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
     func setSpeed(_ speed: Float) { currentSpeed = speed; vlc.rate = speed }
     func setMuted(_ muted: Bool) { vlc.audio?.isMuted = muted }
     var isPlayerPlaying: Bool { vlc.isPlaying }
+    var playbackSpeed: Float { vlc.rate }
+    func stopPlayback() { vlc.stop() }
+    func setSubtitleDelayMs(_ delayMs: Int32) { vlc.currentVideoSubTitleDelay = Int(delayMs) * 1000 }
+    func setSubtitleUrl(_ url: String) {
+        guard let u = URL(string: url) else { return }
+        vlc.addPlaybackSlave(u, type: .subtitle, enforce: true)
+    }
     func seekByMs(_ ms: Int64, exact: Bool) { seekByMs(ms) }
-    func selectAudioTrack(_ trackId: String) {
-        if let id = Int32(trackId) { vlc.currentAudioTrackIndex = id }
-    }
-    func selectSubtitleTrack(_ trackId: String) {
-        if let id = Int32(trackId) { vlc.currentVideoSubTitleIndex = id }
-    }
+    func selectAudioTrack(_ trackId: Int32) { vlc.currentAudioTrackIndex = trackId }
+    func selectSubtitleTrack(_ trackId: Int32) { vlc.currentVideoSubTitleIndex = trackId }
     func setResize(_ mode: Int) {}
 
     func mediaPlayerStateChanged(_ aNotification: Notification) {
