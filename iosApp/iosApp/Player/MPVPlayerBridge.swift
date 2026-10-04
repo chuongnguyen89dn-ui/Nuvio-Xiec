@@ -7,12 +7,12 @@ import ComposeApp
 // Nuvio iOS playback backend backed by libVLC/MobileVLCKit.
 // Media demuxing, codecs and network playback are handled by VLC itself.
 final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
-    private var playerVC: VLCPlayerViewController?
+    private var playerVC: MPVPlayerViewController?
 
     func createPlayerViewController() -> UIViewController { ensurePlayerViewController() }
-    private func ensurePlayerViewController() -> VLCPlayerViewController {
+    private func ensurePlayerViewController() -> MPVPlayerViewController {
         if let playerVC { return playerVC }
-        let vc = VLCPlayerViewController()
+        let vc = MPVPlayerViewController()
         playerVC = vc
         return vc
     }
@@ -34,12 +34,12 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         return value
     }
 
-    private func parseSubtitles(_ json: String?) -> [PluginSubtitle] {
+    private func parseSubtitles(_ json: String?) -> [VLCSubtitle] {
         guard let json, let data = json.data(using: .utf8),
               let raw = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
         return raw.compactMap {
             guard let url = $0["url"] as? String else { return nil }
-            return PluginSubtitle(url: url, language: $0["language"] as? String ?? "Unknown", name: $0["name"] as? String, headers: $0["headers"] as? [String: String])
+            return VLCSubtitle(url: url)
         }
     }
 
@@ -68,7 +68,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func getAudioTrackLabel(at: Int32) -> String { "" }
     func getAudioTrackLang(at: Int32) -> String { "" }
     func isAudioTrackSelected(at: Int32) -> Bool { false }
-    func selectAudioTrack(index: Int32) {}
+    func selectAudioTrack(trackId: String) { playerVC?.selectAudioTrack(trackId) }
 
     func getSubtitleTrackCount() -> Int32 { 0 }
     func getSubtitleTrackIndex(at: Int32) -> Int32 { 0 }
@@ -76,7 +76,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func getSubtitleTrackLabel(at: Int32) -> String { "" }
     func getSubtitleTrackLang(at: Int32) -> String { "" }
     func isSubtitleTrackSelected(at: Int32) -> Bool { false }
-    func selectSubtitleTrack(index: Int32) {}
+    func selectSubtitleTrack(trackId: String) { playerVC?.selectSubtitleTrack(trackId) }
     func disableSubtitles() {}
 
     func getIsPlaying() -> Bool { playerVC?.isPlaying ?? false }
@@ -89,7 +89,11 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func getErrorMessage() -> String { playerVC?.errorMessage ?? "" }
 }
 
-final class VLCPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
+private struct VLCSubtitle { let url: String }
+
+// Keep the historical class name because NowPlayingController and the Compose host
+// use it as their UI contract. Playback underneath is libVLC, not mpv.
+final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
     private let vlc = VLCMediaPlayer(options: ["--network-caching=1500", "--http-reconnect", "--avcodec-hw=any"])
     private var lastURL: String?
     private var lastHeaders: [String: String] = [:]
@@ -109,7 +113,7 @@ final class VLCPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
         vlc.delegate = self
     }
 
-    func loadFile(_ urlString: String, audioUrl: String?, requestHeaders: [String: String], subtitles: [PluginSubtitle]) {
+    func loadFile(_ urlString: String, audioUrl: String?, requestHeaders: [String: String], subtitles: [VLCSubtitle]) {
         guard let url = URL(string: urlString) else { errorMessage = "Invalid media URL"; return }
         lastURL = urlString
         lastHeaders = requestHeaders
@@ -141,9 +145,15 @@ final class VLCPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
     func retryPlayback() { if let lastURL { loadFile(lastURL, audioUrl: nil, requestHeaders: lastHeaders, subtitles: []) } }
     func setSpeed(_ speed: Float) { currentSpeed = speed; vlc.rate = speed }
     func setMuted(_ muted: Bool) { vlc.audio?.isMuted = muted }
-    func setResize(_ mode: Int) {
-        vlc.videoAspectRatio = mode == 1 ? UnsafeMutablePointer(mutating: ("16:9" as NSString).utf8String) : nil
+    var isPlayerPlaying: Bool { vlc.isPlaying }
+    func seekByMs(_ ms: Int64, exact: Bool) { seekByMs(ms) }
+    func selectAudioTrack(_ trackId: String) {
+        if let id = Int32(trackId) { vlc.currentAudioTrackIndex = id }
     }
+    func selectSubtitleTrack(_ trackId: String) {
+        if let id = Int32(trackId) { vlc.currentVideoSubTitleIndex = id }
+    }
+    func setResize(_ mode: Int) {}
 
     func mediaPlayerStateChanged(_ aNotification: Notification) {
         switch vlc.state {
