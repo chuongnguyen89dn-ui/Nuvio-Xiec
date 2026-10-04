@@ -30,7 +30,6 @@ object IvyPlayYouTubeAddonRepository {
                         manifestUrl = addon.manifestUrl,
                         type = catalog.type,
                         catalogId = catalog.id,
-                        maxItems = 2000,
                     )
                     val channel = YouTubeChannel(
                         channelId = catalog.id,
