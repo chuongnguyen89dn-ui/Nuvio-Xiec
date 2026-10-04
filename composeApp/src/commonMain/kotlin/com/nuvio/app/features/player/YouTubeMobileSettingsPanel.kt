@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -50,9 +49,12 @@ internal fun YouTubeMobileSettingsPanel(
                 YouTubeSettingsPage.SUBTITLES -> "Captions"
                 YouTubeSettingsPage.SPEED -> "Playback speed"
             }) {
-                PlayerDialogButton(label = if (page == YouTubeSettingsPage.MAIN) "Close" else "Back") {
-                    if (page == YouTubeSettingsPage.MAIN) onDismiss() else onPage(YouTubeSettingsPage.MAIN)
-                }
+                PlayerDialogButton(
+                    label = if (page == YouTubeSettingsPage.MAIN) "Close" else "Back",
+                    onClick = {
+                        if (page == YouTubeSettingsPage.MAIN) onDismiss() else onPage(YouTubeSettingsPage.MAIN)
+                    },
+                )
             }
             Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                 when (page) {
@@ -86,8 +88,8 @@ internal fun YouTubeMobileSettingsPanel(
 }
 @Composable private fun ChoiceRow(label:String, selected:Boolean, onClick:()->Unit) {
     Surface(Modifier.fillMaxWidth().padding(vertical=3.dp).clickable(onClick=onClick), shape=RoundedCornerShape(12.dp), color=if(selected) MaterialTheme.colorScheme.primary.copy(alpha=.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha=.35f)) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment=Alignment.CenterVertically) {
-            Text(label, Modifier.weight(1f)); if(selected) Icon(Icons.Rounded.Check, null)
+        Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
+            Text(label); if(selected) Icon(Icons.Rounded.Check, null)
         }
     }
 }
