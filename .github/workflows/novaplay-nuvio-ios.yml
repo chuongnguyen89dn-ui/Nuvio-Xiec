@@ -86,3 +86,4 @@ jobs:
             gh release create "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 \
               --title "IvyPlay iOS ${GITHUB_REF_NAME}" --generate-notes --verify-tag
           fi
+# Build checkpoint: AV01 + YouTube profile integration
