@@ -129,3 +129,36 @@ Start by auditing the current `main` implementation responsible for the YouTube 
 6. channel/video route handlers.
 
 Fix those issues on Nuvio without removing the existing AV01 work. Build/test through the Nuvio iOS workflow only after the code path is coherent.
+
+
+## 9. Work continuation — 2026-10-04, YouTube interaction fix
+
+Source commit: `436662ac590028398dd632fdbdf449fc910ae597`.
+iOS run: #125, https://github.com/chuongnguyen89dn-ui/Nuvio-Xiec/actions/runs/37203416637.
+Status at this checkpoint: building, NOT accepted as a working device build.
+
+Audit findings:
+- Mobile and TV empty states hard-coded two channel names; the unused RSS repository also contained default channels.
+- Mobile top/bottom controls were decorative icons; channel callback was never supplied by MainAppContent.
+- Home route loaded once and only replaced data when non-empty, so addon changes/removal were not observed.
+- YouTube did not notify the shell that Home content had rendered. iOS gate readiness depended on a timeout fallback.
+- Nuvio navigation bars were suppressed for the entire YouTube profile, including outside its Home screen.
+
+Implemented:
+- Removed demo channel placeholders and the unused default RSS source.
+- Observe installed addons and active profile; immediately clear channel/selection state when sources change.
+- Render loading, no-addon, empty-content and failure states with retry/addon management.
+- Use the existing channel screen with a real selection/back handler and existing Nuvio StreamRoute for video playback.
+- Preserve complete addon media IDs and catalog content type for stream lookup.
+- Operational Home/Shorts/Channels tabs and local search of loaded addon videos; removed unsupported decorative actions.
+- Back/Nuvio opens Nuvio Settings/Profile; standard navigation is available outside YouTube Home.
+- Signal content readiness even for loading/empty/error UI so touch does not wait on network.
+- The active workflow filename stays unchanged; its run/artifact display names now say Nuvio.
+- Before packaging, CI requires the built bundle ID to be com.nuvio.app and includes Nuvio-build-identity.txt alongside Nuvio-unsigned.ipa.
+
+Validation/limits:
+- Source diff checked; AV01 resolver/player files unchanged.
+- Local Gradle could not download its distribution because the execution environment cannot reach services.gradle.org.
+- Device acceptance still required: no-addon state, install/disable/remove addon, tap channel/video, player return, close to Nuvio, switch profile.
+- Search currently covers loaded addon catalog data. Existing catalog adapter supplies videos; Shorts is empty unless actual Shorts data is supplied.
+- Do not claim AV01 fixed or device interactions verified from CI.
