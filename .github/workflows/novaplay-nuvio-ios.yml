@@ -97,8 +97,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ci-status/ios-latest.log ci-status/ios-latest.txt
           git commit -m "ci(status): record latest iOS build result [skip ci]" || exit 0
-          git pull --rebase origin main
-          git push origin HEAD:main
+          # ci-status is best-effort bookkeeping only. A concurrent main update must never
+          # turn a successfully built/uploaded IPA into a failed workflow.
+          if ! git pull --rebase origin main; then
+            git rebase --abort || true
+            echo "Skipping ci-status persistence because main changed concurrently."
+            exit 0
+          fi
+          if ! git push origin HEAD:main; then
+            echo "Skipping ci-status persistence because main changed before push."
+            exit 0
+          fi
         env:
           JOB_STATUS: ${{ job.status }}
       - name: Stage IvyPlay IPA for versioned releases
