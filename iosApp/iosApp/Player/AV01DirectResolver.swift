@@ -159,7 +159,7 @@ enum AV01DirectResolver {
     }
 
     private static func rewritePlaylist(_ text: String, baseURL: URL, token: String) -> String {
-        text.split(whereSeparator: { $0.isNewline }, omittingEmptySubsequences: false).map { raw in
+        text.split(omittingEmptySubsequences: false, whereSeparator: { $0.isNewline }).map { raw in
             var line = String(raw)
 
             var searchStart = line.startIndex
