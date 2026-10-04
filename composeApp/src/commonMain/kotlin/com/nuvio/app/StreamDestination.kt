@@ -215,6 +215,7 @@ internal fun StreamDestination(
             initialPositionMs = resolvedResumePositionMs ?: 0L,
             initialProgressFraction = resolvedResumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
+            playbackContext = launch.playbackContext,
         )
 
         autoPlayNavigationStarted = replaceStreamRoute
@@ -334,6 +335,7 @@ internal fun StreamDestination(
                 initialPositionMs = launch.resumePositionMs ?: 0L,
                 initialProgressFraction = launch.resumeProgressFraction,
                 contentLanguage = resolveLaunchContentLanguage(cached.contentLanguage),
+                playbackContext = launch.playbackContext,
             )
             if (playerSettings.externalPlayerEnabled) {
                 openExternalPlayback(playerLaunch)
@@ -485,6 +487,7 @@ internal fun StreamDestination(
             initialPositionMs = launch.resumePositionMs ?: 0L,
             initialProgressFraction = launch.resumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
+            playbackContext = launch.playbackContext,
         )
         if (playerSettings.externalPlayerEnabled) {
             openExternalPlayback(playerLaunch)
@@ -633,6 +636,7 @@ internal fun StreamDestination(
             initialPositionMs = resolvedResumePositionMs ?: 0L,
             initialProgressFraction = resolvedResumeProgressFraction,
             contentLanguage = resolveLaunchContentLanguage(),
+            playbackContext = launch.playbackContext,
         )
 
         if (!forceInternal && (forceExternal || playerSettings.externalPlayerEnabled)) {
