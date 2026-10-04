@@ -434,7 +434,61 @@ private fun BoxScope.RenderPlaybackOverlays(
 }
 
 @Composable
+private fun PlayerScreenRuntime.RenderYouTubeSettings() {
+    if (!isYouTubeProfilePlayback) return
+    YouTubeMobileSettingsPanel(
+        visible = showYouTubeSettings,
+        page = youtubeSettingsPage,
+        qualities = videoQualities,
+        audioTracks = audioTracks,
+        selectedAudioIndex = selectedAudioIndex,
+        subtitleTracks = subtitleTracks,
+        selectedSubtitleIndex = selectedSubtitleIndex,
+        playbackSpeed = youtubePlaybackSpeed,
+        onPage = { page ->
+            if (page == YouTubeSettingsPage.QUALITY) {
+                videoQualities = playerController?.getVideoQualities().orEmpty()
+                    .ifEmpty { listOf(PlayerVideoQuality(null, "Auto", true)) }
+            }
+            if (page == YouTubeSettingsPage.AUDIO || page == YouTubeSettingsPage.SUBTITLES) refreshTracks()
+            youtubeSettingsPage = page
+        },
+        onQuality = { height ->
+            playerController?.selectVideoQuality(height)
+            videoQualities = playerController?.getVideoQualities().orEmpty()
+                .ifEmpty { listOf(PlayerVideoQuality(null, "Auto", height == null)) }
+            youtubeSettingsPage = YouTubeSettingsPage.MAIN
+        },
+        onAudio = { index ->
+            selectedAudioIndex = index
+            persistAudioPreference(audioTracks.firstOrNull { it.index == index })
+            playerController?.selectAudioTrack(index)
+            youtubeSettingsPage = YouTubeSettingsPage.MAIN
+        },
+        onSubtitle = { index ->
+            isUserExplicitSubtitleSelection = true
+            selectedAddonSubtitleId = null
+            useCustomSubtitles = false
+            selectedSubtitleIndex = index
+            if (index < 0) playerController?.selectSubtitleTrack(-1)
+            else playerController?.selectSubtitleTrack(index)
+            youtubeSettingsPage = YouTubeSettingsPage.MAIN
+        },
+        onSpeed = { speed ->
+            youtubePlaybackSpeed = speed
+            playerController?.setPlaybackSpeed(speed)
+            youtubeSettingsPage = YouTubeSettingsPage.MAIN
+        },
+        onDismiss = {
+            showYouTubeSettings = false
+            youtubeSettingsPage = YouTubeSettingsPage.MAIN
+        },
+    )
+}
+
+@Composable
 private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
+    RenderYouTubeSettings()
     PlayerScreenModalHosts(
         pendingP2pSwitch = pendingP2pSwitch,
         onPendingP2pSwitchChanged = { pendingP2pSwitch = it },
