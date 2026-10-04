@@ -126,6 +126,7 @@ import com.nuvio.app.features.player.ExternalPlayerIntentResult
 import com.nuvio.app.features.player.ExternalPlayerPlatform
 import com.nuvio.app.features.player.PlayerLaunch
 import com.nuvio.app.features.player.PlayerLaunchStore
+import com.nuvio.app.features.player.PlayerPlaybackContext
 import com.nuvio.app.features.player.PlayerPlaybackSnapshot
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.player.SubtitleLanguageOption
@@ -1339,6 +1340,25 @@ internal fun MainAppContent(
                                     navController.navigate(
                                         DetailRoute(type = meta.type, id = meta.id, title = meta.name),
                                     )
+                                },
+                                onYouTubeVideoClick = { video ->
+                                    val addonMetaId = video.addonMetaId
+                                    if (!addonMetaId.isNullOrBlank()) {
+                                        val streamLaunchId = StreamLaunchStore.put(
+                                            StreamLaunch(
+                                                profileId = activePlaybackProfileId,
+                                                type = "movie",
+                                                videoId = addonMetaId,
+                                                parentMetaId = addonMetaId,
+                                                parentMetaType = "movie",
+                                                title = video.title,
+                                                poster = video.thumbnail,
+                                                manualSelection = false,
+                                                playbackContext = PlayerPlaybackContext.YOUTUBE_PROFILE,
+                                            ),
+                                        )
+                                        navController.navigate(StreamRoute(launchId = streamLaunchId, title = video.title))
+                                    }
                                 },
                                 onPosterLongClick = { meta ->
                                     openPosterActions(PosterActionTarget(preview = meta))
