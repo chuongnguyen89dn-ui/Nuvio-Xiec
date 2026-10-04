@@ -31,6 +31,8 @@ internal class PlayerScreenRuntime(
     val title: String get() = args.title
     val profileId: Int get() = args.profileId
     val sourceUrl: String get() = args.sourceUrl
+    val playbackContext: PlayerPlaybackContext get() = args.playbackContext
+    val isYouTubeProfilePlayback: Boolean get() = playbackContext == PlayerPlaybackContext.YOUTUBE_PROFILE
     val sourceAudioUrl: String? get() = args.sourceAudioUrl
     val sourceHeaders: Map<String, String> get() = args.sourceHeaders
     val sourceResponseHeaders: Map<String, String> get() = args.sourceResponseHeaders
@@ -185,6 +187,8 @@ internal class PlayerScreenRuntime(
     var showAudioModal by mutableStateOf(false)
     var showSubtitleModal by mutableStateOf(false)
     var showVideoSettingsModal by mutableStateOf(false)
+    var showYouTubeSettings by mutableStateOf(false)
+    var videoQualities by mutableStateOf(listOf(PlayerVideoQuality(null, "Auto", true)))
     var audioTracks by mutableStateOf<List<AudioTrack>>(emptyList())
     var subtitleTracks by mutableStateOf<List<SubtitleTrack>>(emptyList())
     var selectedAudioIndex by mutableStateOf(-1)
