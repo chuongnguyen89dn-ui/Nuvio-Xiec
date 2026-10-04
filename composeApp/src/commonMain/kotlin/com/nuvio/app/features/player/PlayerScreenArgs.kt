@@ -2,7 +2,7 @@ package com.nuvio.app.features.player
 
 import androidx.compose.ui.Modifier
 
-internal enum class PlayerPlaybackContext {
+enum class PlayerPlaybackContext {
     IVY,
     YOUTUBE_PROFILE,
 }
