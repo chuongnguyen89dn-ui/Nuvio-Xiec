@@ -639,13 +639,18 @@ final class MPVPlayerViewController: UIViewController {
         applyAudioLanguagePreferences(preferredAudioLanguages)
 
         // Match VLC-style content probing: when the resolver has already inspected the payload,
-        // tell libavformat what the bytes actually are instead of making it infer from a local URL.
-        // Clear the hint for ordinary sources so existing playback behavior is unchanged.
-        setStringProperty("demuxer-lavf-format", request.detectedDemuxer ?? "")
-        if let detectedDemuxer = request.detectedDemuxer {
+        // pass the detected format as a file-local option. It applies only to this load and cannot
+        // leak into the next source.
+        if let detectedDemuxer = request.detectedDemuxer, !detectedDemuxer.isEmpty {
             print("[MPV] using content-detected demuxer: \(detectedDemuxer)")
+            command("loadfile", args: [
+                request.urlString,
+                "replace",
+                "demuxer-lavf-format=\(detectedDemuxer)"
+            ])
+        } else {
+            command("loadfile", args: [request.urlString, "replace"])
         }
-        command("loadfile", args: [request.urlString, "replace"])
         if let audioUrl = request.audioUrl, !audioUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.command("audio-add", args: [audioUrl, "select"], checkForErrors: false)
