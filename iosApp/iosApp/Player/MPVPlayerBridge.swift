@@ -41,10 +41,18 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             do {
                 let resolved = try await AV01DirectResolver.resolve(videoUrl)
                 print("[AV01] direct resolver succeeded; token expiry=\(resolved.tokenExpiresAt)")
+                var playbackHeaders = headers
+                for (key, value) in resolved.requestHeaders {
+                    playbackHeaders = playbackHeaders.filter {
+                        $0.key.caseInsensitiveCompare(key) != .orderedSame
+                    }
+                    playbackHeaders[key] = value
+                }
+                print("[AV01] applying playback headers to MPV: \(resolved.requestHeaders.keys.sorted())")
                 player.loadFile(
                     resolved.localPlaylistURL.absoluteString,
                     audioUrl: audioUrl,
-                    requestHeaders: headers,
+                    requestHeaders: playbackHeaders,
                     subtitles: subtitles
                 )
             } catch {
