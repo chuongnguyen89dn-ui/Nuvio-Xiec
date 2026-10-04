@@ -1,0 +1,105 @@
+name: IvyPlay iOS AV01
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ivyplay-ios-0.4.20-av01]
+    paths:
+      - 'composeApp/**'
+      - 'iosApp/**'
+      - '.github/workflows/ivyplay-ios-av01-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-ivyplay-ios:
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      NUVIO_IOS_DISTRIBUTION: appstore
+      GRADLE_OPTS: -Xmx8g -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1536m
+      KOTLIN_DAEMON_JVMARGS: -Xmx6g
+    steps:
+      - uses: actions/checkout@v4
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Configure IvyPlay account sync
+        shell: bash
+        run: |
+          cat > local.properties <<'EOF'
+          NUVIO_SUPABASE_URL=https://api.nuvio.tv
+          NUVIO_SUPABASE_ANON_KEY=sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN
+          NUVIO_SUPABASE_FALLBACK_URL=
+          EOF
+      - name: Fetch MPVKit
+        run: |
+          git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
+          test -f MPVKit/Package.swift
+      - name: Enforce IvyPlay 0.4.20 identity
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('iosApp/iosApp.xcodeproj/project.pbxproj')
+          s=p.read_text()
+          for old in ('com.nuvio.app.DownloadsWidgetExtension','com.nuvio.media.DownloadsWidgetExtension'):
+              s=s.replace(old,'com.ivyplay.iphone.DownloadsWidgetExtension')
+          s=s.replace('com.nuvio.app.Nuvio$(TEAM_ID)','com.ivyplay.iphone')
+          s=s.replace('com.nuvio.app','com.ivyplay.iphone').replace('com.nuvio.media','com.ivyplay.iphone')
+          if 'INFOPLIST_KEY_CFBundleDisplayName = IvyPlay;' not in s:
+              s=s.replace('INFOPLIST_FILE = iosApp/Info.plist;','INFOPLIST_FILE = iosApp/Info.plist;\n\t\t\t\tINFOPLIST_KEY_CFBundleDisplayName = IvyPlay;')
+          p.write_text(s)
+          Path('iosApp/Configuration/Version.xcconfig').write_text('CURRENT_PROJECT_VERSION=125\nMARKETING_VERSION=0.4.20\n')
+          PY
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName IvyPlay' iosApp/iosApp/Info.plist || /usr/libexec/PlistBuddy -c 'Add :CFBundleDisplayName string IvyPlay' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleName IvyPlay' iosApp/iosApp/Info.plist || /usr/libexec/PlistBuddy -c 'Add :CFBundleName string IvyPlay' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Delete :CFBundleURLTypes' iosApp/iosApp/Info.plist || true
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes array' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0 dict' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleTypeRole string Editor' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLName string com.ivyplay.iphone.auth' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes array' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes:0 string ivyplay' iosApp/iosApp/Info.plist
+          /usr/libexec/PlistBuddy -c 'Add :CFBundleURLTypes:0:CFBundleURLSchemes:1 string stremio' iosApp/iosApp/Info.plist
+      - name: Build and validate IvyPlay unsigned iPhone IPA
+        shell: bash
+        run: |
+          set -o pipefail
+          chmod +x gradlew
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios-device CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-iphone.log
+          APP="$(find build/ios-device/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
+          test -n "$APP"
+          BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          NAME=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP/Info.plist")
+          VER=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist")
+          echo "Built identity: $NAME / $BID / $VER"
+          test "$BID" = 'com.ivyplay.iphone'
+          test "$NAME" = 'IvyPlay'
+          test "$VER" = '0.4.20'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes' "$APP/Info.plist" | grep -F 'ivyplay'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes' "$APP/Info.plist" | grep -F 'stremio'
+          APPEX="$(find "$APP/PlugIns" -maxdepth 1 -name '*.appex' -type d 2>/dev/null | head -1 || true)"
+          if [ -n "$APPEX" ]; then
+            EXT_BID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APPEX/Info.plist")
+            echo "Extension identity: $EXT_BID"
+            test "$EXT_BID" = 'com.ivyplay.iphone.DownloadsWidgetExtension'
+          fi
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP" Payload/IvyPlay.app
+          ditto -c -k --sequesterRsrc --keepParent Payload IvyPlay-unsigned.ipa
+      - name: Upload IvyPlay IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: IvyPlay-iPhone-unsigned
+          path: |
+            IvyPlay-unsigned.ipa
+            build-iphone.log
+          retention-days: 7
