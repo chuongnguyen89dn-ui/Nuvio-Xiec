@@ -1,4 +1,5 @@
 name: IvyPlay iOS Mobile
+# Build trigger: IvyPlay 0.4.20 + AV01 native resolver
 
 on:
   workflow_dispatch:
