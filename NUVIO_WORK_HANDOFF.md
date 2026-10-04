@@ -16,15 +16,13 @@ This repository/workstream is now **NUVIO**.
 
 ## 2. Cleanup already decided
 
-Old/unrelated workflows have been removed or selected for removal so they cannot be confused with the active Nuvio iOS build.
+Old/unrelated workflows have been removed so they cannot be confused with the active Nuvio iOS build.
 
 Known removed during cleanup:
 - `.github/workflows/ivyplay-tv-android.yml`
 - `.github/workflows/xiec-actor-build.yml`
 - `.github/workflows/fix-ios-compat-once.yml`
 - `.github/workflows/novaplay-pages.yml`
-
-The user subsequently manually removed the remaining obsolete workflows that were identified:
 - `.github/workflows/import-upstream.yml`
 - `.github/workflows/novaplay-ios.yml`
 
@@ -69,30 +67,109 @@ Rules:
 - Do not declare this fixed merely because CI builds or a screenshot looks correct.
 - Inspect the actual Compose/iOS navigation/data flow and make the smallest correct architectural fix.
 
-## 5. AV01 playback — continue AFTER the YouTube/navigation issue is under control
+## 5. AV01 playback — OPEN BUG, NOT FIXED
 
-AV01 has already been worked on multiple times. Do not make a third speculative fix.
+**Critical status: AV01 is still NOT playable in the tested Nuvio iOS build.** Do not report the existing AV01 commits as a successful fix. Two Nuvio-side fix attempts were already made and the on-device result still failed.
 
-The failing Nuvio test showed the player/FFmpeg path reaching errors equivalent to:
+### 5.1 Known-good reference: VLC/local playback
+
+Reference test video: **AV01 video `221293`**.
+
+A working local/VLC flow was demonstrated and must be treated as the behavioral reference instead of inventing a new resolver path.
+
+Known-good sequence:
+
+1. Fetch `https://files.iw01.xyz/edge/geo.js?json` using the AV01-compatible `User-Agent` and `Referer`.
+2. Read the returned `token_v2`, expiry and observed public IP.
+3. Call AV01 CDN-access for the selected video: `https://customers.iw01.xyz/api/v1/videos/<id>/cdn-access` with the geo/token parameters.
+4. Fetch the AV01 HLS rendition/manifest; the proven test used the 1080p-style rendition `index90-sv3-v1-a1.m3u8`.
+5. Rewrite `iw01.xyz` HLS URLs and `URI="..."` attributes so the fresh `access_token` is attached to the media/init/segment requests.
+6. VLC receives the playlist and then requests the signed CDN media directly. The local helper does **not** proxy every media segment.
+7. VLC was supplied AV01-compatible HTTP identity, including `User-Agent` and `Referer: https://www.av01.media/`.
+
+The local design resolves the signed playlist **when Play is selected**, not hours earlier. This matters because the token expires and is tied to the network identity used to obtain it.
+
+The successful probe for video `221293` reached AV01/geo endpoints with HTTP 200, and the resolver's signed media/segment probe also returned HTTP 200. VLC playback was reported fast/stable. This is the known-good path.
+
+### 5.2 Critical discovery: token/IP binding
+
+AV01 CDN access is not a portable static token. `cdn-access` binds the JWT/access token to the **observed public IP**; supplying an arbitrary requested IP does not make the token transferable.
+
+During the successful reference flow, the observed geo IP and JWT IP matched (`118.69.28.122` in the captured test). Therefore a token minted by Render/server cannot be assumed to work on an iPhone using a different public IP.
+
+Consequence: the correct Nuvio architecture is **client-direct token acquisition on the iPhone/network that will fetch the media**, or an equivalent same-egress design. Do not return to a design where Render obtains a token and the iPhone then tries to use that token from another IP.
+
+The local cross-device helper also required PC/iPhone to be on the same Wi-Fi/public egress for this reason.
+
+### 5.3 Nuvio fix attempt #1 — already tried, still not sufficient
+
+Commit: `3f59e0c8554b01c36f891d99df0f74f1d50526e9`
+
+Historical commit title contains `ivyplay-ios`, but the work belongs to the Nuvio iOS code path; do not use the old naming to split the project again.
+
+Change made in `iosApp/iosApp/Player/AV01DirectResolver.swift`:
+- extended `AV01ResolvedPlayback` with `requestHeaders`;
+- returned the resolver's AV01 `User-Agent`;
+- returned `Referer: https://www.av01.media/`.
+
+Reason for the attempt: the local/VLC resolver could obtain a working signed playlist/media probe, but the player path was not necessarily using the same HTTP identity for the subsequent HLS requests.
+
+**Result: this alone did not constitute a runtime fix.**
+
+### 5.4 Nuvio fix attempt #2 — already tried, on-device playback still failed
+
+Commit: `0242a63be11aa0867d2d644c9cecea25102a6164`
+
+Change made in `iosApp/iosApp/Player/MPVPlayerBridge.swift`:
+- merge `AV01ResolvedPlayback.requestHeaders` into the player request headers;
+- replace case-insensitive duplicate keys;
+- pass the merged headers to `player.loadFile(...)` for the local AV01 playlist.
+
+This was specifically intended to make MPV use the same AV01 UA/Referer identity as the resolver/VLC path.
+
+**Observed result after these fixes: AV01 still did not play on the user's iPhone/Nuvio build.** The player/FFmpeg path reached errors equivalent to:
 - `error reading header`
 - `avformat_open_input() failed`
 - `unrecognized file format`
 
-A VLC/local path had previously demonstrated that a working playback request exists. Therefore diagnose the difference rather than guessing.
+Therefore **DO NOT make a third blind UA/Referer patch**. Both propagation steps already exist and have failed to solve the complete runtime problem.
 
-Instrument/compare the Nuvio request against the known-working request, including as applicable:
-- resolved/final media URL
-- redirects
-- HTTP status
-- `Content-Type`
-- `User-Agent`
-- `Referer`
-- `Origin`
-- cookies/token/query parameters
-- request headers passed into the player
-- enough response metadata/body prefix to distinguish an HLS/media response from HTML/error/anti-bot output
+### 5.5 Current AV01 diagnosis plan — evidence before code change
 
-Only change source after identifying the concrete difference. Preserve the existing AV01 resolver/player work unless evidence shows a specific part is wrong.
+The next AV01 task is to locate the **first concrete divergence between Nuvio and the known-good VLC/local flow**.
+
+Instrument the Nuvio AV01 path on the actual client side and record, without exposing full reusable secrets in logs:
+
+- geo request status and observed public IP;
+- cdn-access status;
+- token expiry and a safe token fingerprint/short prefix only;
+- master/rendition playlist URL and redirect chain;
+- HTTP status and `Content-Type` for playlist fetches;
+- rewritten media/init/segment URL host/path and whether `access_token` is present;
+- HTTP status and `Content-Type` for at least the first init/media object;
+- `User-Agent`, `Referer`, `Origin` and any required cookie/header names actually applied by MPV;
+- whether MPV is reading the intended local rewritten playlist or accidentally opening an HTML/error response;
+- enough response metadata/body prefix to distinguish HLS/media from HTML/anti-bot/error output;
+- compare the public IP used when the token is minted with the public IP used for the CDN object request.
+
+Compare those checkpoints in order against the proven VLC flow:
+
+`geo.js -> cdn-access -> fresh access_token -> master/rendition HLS -> rewritten signed init/media URLs -> CDN object HTTP 200 -> decoder`
+
+**Fix only the first failing/different checkpoint.** Preserve the current AV01 resolver/player work unless evidence proves a specific piece is wrong.
+
+Do not use `/av01/play/<id>.m3u8` through a remote Render token-minting path as proof of correctness if the media fetch leaves from a different public IP. The successful local helper's `/play/<id>.m3u8` behavior was valid because resolution happened on the same public egress used by the client test.
+
+### 5.6 AV01 acceptance criteria
+
+AV01 is fixed only when all of the following are true:
+- Nuvio itself obtains/uses a token valid for the same client/network path that fetches media;
+- first init/media request is a real media response, not HTML/error content;
+- MPV opens the HLS successfully without the header/format errors above;
+- video `221293` actually plays on the user's iPhone in Nuvio;
+- a fresh Play after token expiry can resolve a new token and play again.
+
+A successful CI build, successful resolver log, successful playlist fetch, or VLC-only playback **does not by itself close AV01**.
 
 ## 6. Build/CI acceptance criteria
 
@@ -119,22 +196,22 @@ For future iOS builds:
 
 ## 8. Immediate next action
 
-Start by auditing the current `main` implementation responsible for the YouTube profile/mobile UI. Trace:
+First finish/accept the current YouTube interaction work on-device. Then continue the AV01 diagnosis using section 5 above. Do not repeat the two existing header-only fixes.
 
-1. what opens the YouTube screen;
-2. where its channel/profile data comes from;
-3. why data appears without the addon;
-4. what is intercepting or preventing taps;
-5. how navigation back to Nuvio is supposed to work;
-6. channel/video route handlers.
+For YouTube, verify:
+1. no addon -> no fake channels;
+2. install/enable addon -> addon data appears;
+3. touch/channel/video actions work;
+4. player route works;
+5. Back/Close returns to Nuvio;
+6. disable/remove addon and profile switching clear/update state correctly.
 
-Fix those issues on Nuvio without removing the existing AV01 work. Build/test through the Nuvio iOS workflow only after the code path is coherent.
-
+For AV01, instrument the real iPhone/Nuvio request chain and find the first checkpoint that differs from the proven VLC/local `221293` flow.
 
 ## 9. Work continuation — 2026-10-04, YouTube interaction fix
 
 Source commit: `436662ac590028398dd632fdbdf449fc910ae597`.
-iOS run: #125, https://github.com/chuongnguyen89dn-ui/Nuvio-Xiec/actions/runs/37203416637.
+iOS run: #125.
 Status: run #125 completed successfully at 2026-10-04 13:08 UTC. Compilation/package verification passed; device interaction acceptance remains pending.
 
 Audit findings:
@@ -154,15 +231,14 @@ Implemented:
 - Back/Nuvio opens Nuvio Settings/Profile; standard navigation is available outside YouTube Home.
 - Signal content readiness even for loading/empty/error UI so touch does not wait on network.
 - The active workflow filename stays unchanged; its run/artifact display names now say Nuvio.
-- Before packaging, CI requires the built bundle ID to be com.nuvio.app and includes Nuvio-build-identity.txt alongside Nuvio-unsigned.ipa.
+- Before packaging, CI requires the built bundle ID to be `com.nuvio.app` and includes `Nuvio-build-identity.txt` alongside `Nuvio-unsigned.ipa`.
 
 Validation/limits:
-- Source diff checked; AV01 resolver/player files unchanged.
-- Local Gradle could not download its distribution because the execution environment cannot reach services.gradle.org.
+- Source diff checked; AV01 resolver/player files unchanged by this YouTube work.
+- Local Gradle could not download its distribution because the execution environment could not reach services.gradle.org.
 - Device acceptance still required: no-addon state, install/disable/remove addon, tap channel/video, player return, close to Nuvio, switch profile.
 - Search currently covers loaded addon catalog data. Existing catalog adapter supplies videos; Shorts is empty unless actual Shorts data is supplied.
 - Do not claim AV01 fixed or device interactions verified from CI.
-
 
 ### Run #125 verified result
 
@@ -170,7 +246,6 @@ Validation/limits:
 - Build log confirms `BUILD SUCCEEDED`, product `Nuvio.app`, target `iosApp`, device arm64, bundle `com.nuvio.app`.
 - The packaging step successfully checked the built Info.plist bundle ID before copying that app into Payload.
 - Artifact: `Nuvio-iPhone-unsigned`, ID `11304570963`, 59,774,258 bytes; includes `Nuvio-unsigned.ipa` and `Nuvio-build-identity.txt`.
-- Download: https://github.com/chuongnguyen89dn-ui/Nuvio-Xiec/actions/runs/37203416637/artifacts/11304570963
 - Artifact SHA-256 reported by GitHub: `aa766654419309b2b6dce4a8476b08b710bdf4e7621f6317b837f7128acd4b81`.
 - CI/bundle identity verified from completed workflow/logs. Local archive inspection was unavailable because the artifact download URL returned HTTP 403 in the execution environment; do not claim local IPA extraction.
-- Next acceptance step is testing the new IPA on the user's iPhone: no addon, install addon, channel/video taps, player Back, Nuvio Close and addon removal/profile switch. AV01 diagnosis remains next after that acceptance.
+- Next acceptance step is testing the new IPA on the user's iPhone: no addon, install addon, channel/video taps, player Back, Nuvio Close and addon removal/profile switch. AV01 diagnosis remains open and must follow section 5.
