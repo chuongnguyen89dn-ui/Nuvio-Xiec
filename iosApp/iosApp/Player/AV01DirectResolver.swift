@@ -111,7 +111,14 @@ enum AV01DirectResolver {
         }
         try signedData.write(to: file, options: .atomic)
 
-        return AV01ResolvedPlayback(\n            localPlaylistURL: file,\n            tokenExpiresAt: exp,\n            requestHeaders: [\n                "User-Agent": userAgent,\n                "Referer": "https://www.av01.media/"\n            ]\n        )
+        return AV01ResolvedPlayback(
+            localPlaylistURL: file,
+            tokenExpiresAt: exp,
+            requestHeaders: [
+                "User-Agent": userAgent,
+                "Referer": "https://www.av01.media/"
+            ]
+        )
     }
 
     private static func extractVideoID(_ url: URL) -> String? {
