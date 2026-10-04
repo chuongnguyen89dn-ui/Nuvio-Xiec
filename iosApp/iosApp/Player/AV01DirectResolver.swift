@@ -3,6 +3,7 @@ import Foundation
 struct AV01ResolvedPlayback {
     let localPlaylistURL: URL
     let tokenExpiresAt: TimeInterval
+    let requestHeaders: [String: String]
 }
 
 enum AV01DirectResolver {
@@ -110,7 +111,7 @@ enum AV01DirectResolver {
         }
         try signedData.write(to: file, options: .atomic)
 
-        return AV01ResolvedPlayback(localPlaylistURL: file, tokenExpiresAt: exp)
+        return AV01ResolvedPlayback(\n            localPlaylistURL: file,\n            tokenExpiresAt: exp,\n            requestHeaders: [\n                "User-Agent": userAgent,\n                "Referer": "https://www.av01.media/"\n            ]\n        )
     }
 
     private static func extractVideoID(_ url: URL) -> String? {
