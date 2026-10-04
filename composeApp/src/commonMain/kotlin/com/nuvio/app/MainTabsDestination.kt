@@ -81,7 +81,7 @@ internal fun MainTabsDestination(
         val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
         val navBarGlowEnabled by ThemeSettingsRepository.navBarGlowEnabled.collectAsStateWithLifecycle()
         val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
-        val isYouTubeProfile = profileState.activeProfile?.contentMode == IvyPlayContentMode.YOUTUBE
+        val isYouTubeProfile = profileState.activeProfile?.contentMode == IvyPlayContentMode.YOUTUBE && selectedTab == AppScreenTab.Home
         val floatingNavigationItems = listOf(
             FloatingNavigationItem(
                 selected = selectedTab == AppScreenTab.Home,

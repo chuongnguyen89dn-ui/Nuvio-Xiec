@@ -1,4 +1,4 @@
-name: NovaPlay original Nuvio iOS
+name: Nuvio iOS
 
 on:
   workflow_dispatch:
@@ -33,7 +33,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Configure IvyPlay Nuvio Cloud account sync
+      - name: Configure Nuvio Cloud account sync
         shell: bash
         run: |
           cat > local.properties <<'EOF'
@@ -54,20 +54,30 @@ jobs:
             -derivedDataPath build/ios-device CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-iphone.log
           APP="$(find build/ios-device/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
           test -n "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test "$BUNDLE_ID" = "com.nuvio.app"
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "run_id=$GITHUB_RUN_ID"
+            echo "bundle_id=$BUNDLE_ID"
+            /usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$APP/Info.plist"
+          } > Nuvio-build-identity.txt
           mkdir -p Payload
           cp -R "$APP" Payload/
-          ditto -c -k --sequesterRsrc --keepParent Payload NovaPlay-Nuvio-original-unsigned.ipa
+          ditto -c -k --sequesterRsrc --keepParent Payload Nuvio-unsigned.ipa
       - name: Upload full original Nuvio IPA
         uses: actions/upload-artifact@v4
         with:
-          name: NovaPlay-Nuvio-original-iPhone-unsigned
-          path: NovaPlay-Nuvio-original-unsigned.ipa
+          name: Nuvio-iPhone-unsigned
+          path: |
+            Nuvio-unsigned.ipa
+            Nuvio-build-identity.txt
           retention-days: 7
       - name: Upload iPhone build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: IvyPlay-iOS-device-build-log
+          name: Nuvio-iOS-device-build-log
           path: build-iphone.log
           retention-days: 7
       - name: Persist latest iOS build status for automatic follow-up
@@ -94,7 +104,7 @@ jobs:
       - name: Stage IvyPlay IPA for versioned releases
         if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
         run: |
-          cp NovaPlay-Nuvio-original-unsigned.ipa IvyPlay-unsigned.ipa
+          cp Nuvio-unsigned.ipa IvyPlay-unsigned.ipa
           shasum -a 256 IvyPlay-unsigned.ipa > IvyPlay-unsigned.ipa.sha256
       - name: Publish IvyPlay iOS release
         if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')

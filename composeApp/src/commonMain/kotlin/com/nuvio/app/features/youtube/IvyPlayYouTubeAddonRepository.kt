@@ -1,6 +1,6 @@
 package com.nuvio.app.features.youtube
 
-import com.nuvio.app.features.addons.AddonRepository
+import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.catalog.fetchCatalogPage
 import kotlinx.coroutines.async
@@ -8,38 +8,49 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
 object IvyPlayYouTubeAddonRepository {
-    suspend fun loadChannels(): List<YouTubeChannelSnapshot> = coroutineScope {
-        AddonRepository.initialize()
-        AddonRepository.awaitManifestsLoaded()
-        val sources = AddonRepository.uiState.value.addons.enabledAddons()
+    fun hasYouTubeSource(addons: List<ManagedAddon>): Boolean = addons.any { addon ->
+        addon.enabled && addon.manifest?.let { manifest ->
+            manifest.catalogs.any { catalog ->
+                isYouTubeCatalog(manifest.id, manifest.name, manifest.idPrefixes, catalog.id, catalog.name)
+            }
+        } == true
+    }
+
+    private fun isYouTubeCatalog(id: String, name: String, prefixes: List<String>, catalogId: String, catalogName: String): Boolean {
+        val identity = (listOf(id, name, catalogId, catalogName) + prefixes).joinToString(" ").lowercase()
+        return "youtube" in identity || "khoai" in identity || "hoa-ban" in identity || "hoaban" in identity
+    }
+
+    suspend fun loadChannels(addons: List<ManagedAddon>, forceRefresh: Boolean = false): List<YouTubeChannelSnapshot> = coroutineScope {
+        val sources = addons.enabledAddons()
             .flatMap { addon ->
                 val manifest = addon.manifest ?: return@flatMap emptyList()
                 manifest.catalogs
-                    .filter { catalog -> catalog.type == "movie" }
                     .map { catalog -> Triple(addon, manifest, catalog) }
             }
             .filter { (_, manifest, catalog) ->
-                val haystack = listOf(manifest.id, manifest.name, catalog.id, catalog.name, manifest.idPrefixes.joinToString(" ")).joinToString(" ").lowercase()
-                "youtube" in haystack || "khoai" in haystack || "hoa-ban" in haystack || "hoaban" in haystack
+                isYouTubeCatalog(manifest.id, manifest.name, manifest.idPrefixes, catalog.id, catalog.name)
             }
 
         sources.map { (addon, manifest, catalog) ->
             async {
-                runCatching {
+                run {
                     val page = fetchCatalogPage(
                         manifestUrl = addon.manifestUrl,
                         type = catalog.type,
                         catalogId = catalog.id,
+                        forceRefresh = forceRefresh,
                     )
                     val channel = YouTubeChannel(
-                        channelId = catalog.id,
+                        channelId = "${addon.manifestUrl}|${catalog.type}|${catalog.id}",
                         name = catalog.name,
                         displayName = catalog.name,
                         avatar = manifest.logoUrl,
                     )
                     val videos = page.items.map { item ->
                         YouTubeVideo(
-                            videoId = item.id.substringAfterLast('_'),
+                            videoId = item.id,
+                            addonType = catalog.type,
                             addonMetaId = item.id,
                             title = item.name,
                             url = "",
@@ -64,8 +75,8 @@ object IvyPlayYouTubeAddonRepository {
                         live = emptyList(),
                         playlists = emptyList(),
                     )
-                }.getOrNull()
+                }
             }
-        }.awaitAll().filterNotNull().filter { it.videos.isNotEmpty() }
+        }.awaitAll()
     }
 }

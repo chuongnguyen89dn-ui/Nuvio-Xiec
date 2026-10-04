@@ -210,9 +210,7 @@ private fun TvChip(label: String, selected: Boolean) {
 private fun TvLoadingChannels() {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Channels", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        listOf("Khoai Lang Thang", "HOA BAN FOOD").forEach { name ->
-            Text(name, color = Color(0xFFCCCCCC), fontSize = 18.sp)
-        }
+        Text("Chưa có dữ liệu kênh từ addon.", color = Color(0xFFCCCCCC), fontSize = 18.sp)
     }
 }
 

@@ -92,7 +92,7 @@ internal data class AppTabActions(
     val onPosterClick: ((MetaPreview) -> Unit)? = null,
     val onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     val onYouTubeVideoClick: ((YouTubeVideo) -> Unit)? = null,
-    val onYouTubeChannelClick: ((YouTubeChannel) -> Unit)? = null,
+    val onYouTubeClose: () -> Unit = {},
     val onLibraryPosterClick: ((LibraryItem) -> Unit)? = null,
     val onLibraryPosterLongClick: ((LibraryItem, LibrarySection) -> Unit)? = null,
     val onLibrarySectionViewAllClick: ((LibrarySection, LibrarySortOption) -> Unit)? = null,
@@ -139,7 +139,9 @@ internal fun AppTabHost(
                                 IvyPlayYouTubeHomeRoute(
                                     modifier = Modifier.fillMaxSize(),
                                     onVideoClick = { video -> actions.onYouTubeVideoClick?.invoke(video) },
-                                    onChannelClick = { channel -> actions.onYouTubeChannelClick?.invoke(channel) },
+                                    onClose = actions.onYouTubeClose,
+                                    onManageAddons = actions.onAddonsSettingsClick,
+                                    onContentReady = actions.onInitialHomeContentRendered,
                                 )
                             },
                             standardContent = {

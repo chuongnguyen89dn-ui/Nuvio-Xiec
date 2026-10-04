@@ -35,8 +35,7 @@ fun IvyPlayYouTubeChannelScreen(
     snapshot: YouTubeChannelSnapshot,
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
-    onSearch: () -> Unit = {},
-    onVideoClick: (YouTubeVideo) -> Unit = {},
+    onVideoClick: (YouTubeVideo) -> Unit,
     onPlaylistClick: (YouTubePlaylist) -> Unit = {},
 ) {
     var selectedTab by remember(snapshot.channel.channelId) { mutableStateOf(YouTubeChannelTab.HOME) }
@@ -47,8 +46,6 @@ fun IvyPlayYouTubeChannelScreen(
             Row(Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Back", tint = Color.White) }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = onSearch) { Icon(Icons.Default.Search, "Search", tint = Color.White) }
-                IconButton(onClick = {}) { Icon(Icons.Default.MoreVert, "More", tint = Color.White) }
             }
         },
     ) { padding ->
@@ -78,7 +75,6 @@ fun IvyPlayYouTubeChannelScreen(
                         Text(it, color = Color(0xFFDDDDDD), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = {}, modifier = Modifier.fillMaxWidth()) { Text("Đăng ký") }
                 }
             }
             item {
@@ -146,7 +142,6 @@ private fun ChannelVideoRow(video: YouTubeVideo, onClick: (YouTubeVideo) -> Unit
             Text(listOfNotNull(video.viewCount?.let { compactYouTubeNumber(it) + " lượt xem" }, video.uploadDate).joinToString(" • "),
                 color = Color(0xFFAAAAAA), fontSize = 11.sp)
         }
-        Icon(Icons.Default.MoreVert, "More", tint = Color(0xFFAAAAAA), modifier = Modifier.size(20.dp))
     }
 }
 

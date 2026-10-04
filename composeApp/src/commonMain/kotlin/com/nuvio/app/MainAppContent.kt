@@ -498,9 +498,10 @@ internal fun MainAppContent(
         profileSwitchLoading,
         useNativeNavigation,
         profileState.activeProfile?.contentMode,
+        selectedTab,
     ) {
         val visible = !useNativeNavigation &&
-            profileState.activeProfile?.contentMode != IvyPlayContentMode.YOUTUBE &&
+            (profileState.activeProfile?.contentMode != IvyPlayContentMode.YOUTUBE || selectedTab != AppScreenTab.Home) &&
             liquidGlassNativeTabBarSupported &&
             liquidGlassNativeTabBarEnabled &&
             initialHomeReady &&
@@ -1341,16 +1342,17 @@ internal fun MainAppContent(
                                         DetailRoute(type = meta.type, id = meta.id, title = meta.name),
                                     )
                                 },
+                                onYouTubeClose = { activateTab(AppScreenTab.Settings) },
                                 onYouTubeVideoClick = { video ->
                                     val addonMetaId = video.addonMetaId
                                     if (!addonMetaId.isNullOrBlank()) {
                                         val streamLaunchId = StreamLaunchStore.put(
                                             StreamLaunch(
                                                 profileId = activePlaybackProfileId,
-                                                type = "movie",
+                                                type = video.addonType,
                                                 videoId = addonMetaId,
                                                 parentMetaId = addonMetaId,
-                                                parentMetaType = "movie",
+                                                parentMetaType = video.addonType,
                                                 title = video.title,
                                                 poster = video.thumbnail,
                                                 manualSelection = false,

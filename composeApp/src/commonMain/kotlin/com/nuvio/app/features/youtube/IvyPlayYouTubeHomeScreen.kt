@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,112 +28,81 @@ import coil3.compose.AsyncImage
 fun IvyPlayYouTubeHomeScreen(
     modifier: Modifier = Modifier,
     channels: List<YouTubeChannelSnapshot> = emptyList(),
-    onVideoClick: (YouTubeVideo) -> Unit = {},
-    onChannelClick: (YouTubeChannel) -> Unit = {},
+    onVideoClick: (YouTubeVideo) -> Unit,
+    onChannelClick: (YouTubeChannel) -> Unit,
+    loading: Boolean = false,
+    error: String? = null,
+    hasSource: Boolean = false,
+    onRetry: () -> Unit,
+    onManageAddons: () -> Unit,
+    onClose: () -> Unit,
 ) {
+    var query by remember { mutableStateOf("") }
+    var showSearch by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf("Home") }
     val videos = channels.flatMap { it.videos + it.live }.distinctBy { it.videoId }
     val shorts = channels.flatMap { it.shorts }.distinctBy { it.videoId }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Black,
-        topBar = { YouTubeTopBar() },
-        bottomBar = { YouTubeBottomBar() },
+        topBar = { YouTubeTopBar(onClose, { showSearch = !showSearch }) },
+        bottomBar = { YouTubeBottomBar(selectedTab, { selectedTab = it }, onClose) },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(bottom = 12.dp),
         ) {
-            item { YouTubeTopicChips() }
-            if (channels.isEmpty()) {
-                item { IvyPlayChannelPlaceholders() }
-            } else {
-                items(videos, key = { it.videoId }) { video ->
-                    val channel = channels.firstOrNull { it.channel.channelId == video.channelId }?.channel
-                    YouTubeVideoCard(video, channel, onVideoClick, onChannelClick)
+            if (showSearch) item {
+                OutlinedTextField(value = query, onValueChange = { query = it },
+                    placeholder = { Text("Tìm trong video đã tải từ addon") },
+                    modifier = Modifier.fillMaxWidth().padding(12.dp), singleLine = true)
+            }
+            if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (error != null) item {
+                Text(error, color = Color.White, modifier = Modifier.padding(16.dp))
+                TextButton(onClick = onRetry) { Text("Thử lại") }
+            }
+            if (!loading && channels.isEmpty() && error == null) item {
+                Column(Modifier.padding(24.dp)) {
+                    Text(if (hasSource) "Addon chưa cung cấp nội dung." else "Chưa cài addon YouTube cho hồ sơ này.", color = Color.White)
+                    TextButton(onClick = onManageAddons) { Text("Quản lý addon") }
                 }
-                if (shorts.isNotEmpty()) item { YouTubeShortsShelf(shorts, onVideoClick) }
+            }
+            if (channels.isNotEmpty()) {
+                if (selectedTab == "Channels") {
+                    items(channels, key = { it.channel.channelId }) { snapshot ->
+                        Row(Modifier.fillMaxWidth().clickable { onChannelClick(snapshot.channel) }.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(snapshot.channel.avatar, null, Modifier.size(44.dp).clip(CircleShape))
+                            Spacer(Modifier.width(12.dp))
+                            Text(snapshot.channel.displayName ?: snapshot.channel.name, color = Color.White)
+                        }
+                    }
+                } else {
+                    val visibleVideos = (if (selectedTab == "Shorts") shorts else videos)
+                        .filter { query.isBlank() || it.title.contains(query, ignoreCase = true) || it.channelName.orEmpty().contains(query, ignoreCase = true) }
+                    if (visibleVideos.isEmpty()) item {
+                        Text("Không có video phù hợp trong dữ liệu addon.", color = Color.White, modifier = Modifier.padding(24.dp))
+                    }
+                    items(visibleVideos, key = { it.videoId }) { video ->
+                        val channel = channels.firstOrNull { it.channel.channelId == video.channelId }?.channel
+                        YouTubeVideoCard(video, channel, onVideoClick, onChannelClick)
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun YouTubeTopBar() {
-    Row(
-        Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+private fun YouTubeTopBar(onClose: () -> Unit, onSearch: () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, "Về Nuvio", tint = Color.White) }
         Icon(Icons.Default.PlayCircle, null, tint = Color.Red, modifier = Modifier.size(29.dp))
         Spacer(Modifier.width(6.dp))
         Text("YouTube", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        Icon(Icons.Default.Cast, "Cast", tint = Color.White)
-        Spacer(Modifier.width(22.dp))
-        Icon(Icons.Default.NotificationsNone, "Notifications", tint = Color.White)
-        Spacer(Modifier.width(22.dp))
-        Icon(Icons.Default.Search, "Search", tint = Color.White)
-        Spacer(Modifier.width(20.dp))
-        Box(
-            Modifier.size(28.dp).clip(CircleShape).background(Color(0xFF1565C0)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("I", color = Color.White, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun YouTubeTopicChips() {
-    val topics = listOf("All", "Travel", "Food", "Live", "Music", "Recently uploaded")
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(topics) { topic ->
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (topic == "All") Color.White else Color(0xFF272727),
-            ) {
-                Text(
-                    topic,
-                    color = if (topic == "All") Color.Black else Color.White,
-                    modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
-                    fontSize = 14.sp,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun IvyPlayChannelPlaceholders() {
-    Column(Modifier.fillMaxWidth().padding(top = 18.dp)) {
-        Text(
-            "Channels",
-            color = Color.White,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-        )
-        listOf("Khoai Lang Thang", "HOA BAN FOOD").forEachIndexed { index, name ->
-            Row(
-                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    Modifier.size(46.dp).clip(CircleShape)
-                        .background(if (index == 0) Color(0xFF6D4C41) else Color(0xFF2E7D32)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(name.take(1), color = Color.White, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(name, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("Loading YouTube channel feed…", color = Color(0xFFAAAAAA), fontSize = 13.sp)
-                }
-            }
-        }
+        IconButton(onClick = onSearch) { Icon(Icons.Default.Search, "Tìm video", tint = Color.White) }
     }
 }
 
@@ -215,7 +184,6 @@ private fun YouTubeVideoCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Icon(Icons.Default.MoreVert, "More", tint = Color.White)
         }
     }
 }
@@ -257,30 +225,18 @@ private fun YouTubeShortsShelf(shorts: List<YouTubeVideo>, onVideoClick: (YouTub
 }
 
 @Composable
-private fun YouTubeBottomBar() {
-    Row(
-        Modifier.fillMaxWidth().height(64.dp).background(Color.Black),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceAround,
-    ) {
-        YouTubeNavItem(Icons.Default.Home, "Home")
-        YouTubeNavItem(Icons.Default.SmartDisplay, "Shorts")
-        Box(
-            Modifier.size(42.dp).clip(CircleShape).background(Color.White),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Default.Add, "Create", tint = Color.Black)
+private fun YouTubeBottomBar(selected: String, onSelect: (String) -> Unit, onClose: () -> Unit) {
+    Row(Modifier.fillMaxWidth().height(64.dp).background(Color.Black),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceAround) {
+        listOf("Home" to Icons.Default.Home, "Shorts" to Icons.Default.SmartDisplay, "Channels" to Icons.Default.Subscriptions).forEach { (label, icon) ->
+            TextButton(onClick = { onSelect(label) }) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(icon, label, tint = if (selected == label) Color.White else Color.Gray)
+                    Text(label, color = if (selected == label) Color.White else Color.Gray, fontSize = 10.sp)
+                }
+            }
         }
-        YouTubeNavItem(Icons.Default.Subscriptions, "Subscriptions")
-        YouTubeNavItem(Icons.Default.AccountCircle, "You")
-    }
-}
-
-@Composable
-private fun YouTubeNavItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, label, tint = Color.White, modifier = Modifier.size(24.dp))
-        Text(label, color = Color.White, fontSize = 10.sp)
+        TextButton(onClick = onClose) { Text("Nuvio") }
     }
 }
 

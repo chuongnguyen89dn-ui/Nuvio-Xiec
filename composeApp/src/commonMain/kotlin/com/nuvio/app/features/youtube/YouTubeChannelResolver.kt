@@ -29,6 +29,7 @@ data class YouTubeHomeSection(
 data class YouTubeVideo(
     val videoId: String,
     val addonMetaId: String? = null,
+    val addonType: String = "movie",
     val title: String,
     val url: String,
     val thumbnail: String? = null,
