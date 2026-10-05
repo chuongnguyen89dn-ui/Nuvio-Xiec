@@ -181,3 +181,20 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
         }
     }
 }
+
+
+// MARK: - Bridge Creator (implements Kotlin protocol)
+
+final class MPVPlayerBridgeCreator: NSObject, NuvioPlayerBridgeCreator {
+    func createBridge() -> any NuvioPlayerBridge {
+        return MPVPlayerBridgeImpl()
+    }
+}
+
+// MARK: - Registration (called from Swift app startup)
+
+enum NuvioPlayerRegistration {
+    static func register() {
+        NuvioPlayerBridgeFactory.shared.registerFactory(creator: MPVPlayerBridgeCreator())
+    }
+}
