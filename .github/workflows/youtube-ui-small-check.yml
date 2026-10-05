@@ -1,0 +1,20 @@
+name: YouTube UI Small Check
+
+on:
+  push:
+    branches: [youtube-from-137]
+    paths:
+      - 'composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/**'
+      - '.github/workflows/youtube-ui-small-check.yml'
+  workflow_dispatch:
+
+jobs:
+  compile-youtube-profile:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare CI
+        run: touch local.properties
+      - name: Compile Nuvio iOS Kotlin
+        run: ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
