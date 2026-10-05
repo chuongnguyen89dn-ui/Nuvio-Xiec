@@ -111,8 +111,8 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
     private(set) var currentSpeed: Float = 1
 
     var isPlaying: Bool { vlc.isPlaying }
-    var durationMs: Int64 { vlc.media?.length.intValue ?? 0 }
-    var positionMs: Int64 { vlc.time.intValue }
+    var durationMs: Int64 { Int64(vlc.media?.length.intValue ?? 0) }
+    var positionMs: Int64 { Int64(vlc.time.intValue) }
 
     override func viewDidLoad() {
         super.viewDidLoad()
