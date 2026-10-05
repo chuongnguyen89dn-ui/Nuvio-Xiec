@@ -1,0 +1,19 @@
+name: YouTube UI Navigation Check
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/youtube-ui-navigation-check.yml']
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify isolated UI block
+        run: |
+          grep -q 'PlatformBackHandler' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
+          grep -q 'onClose' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeScreen.kt
+          grep -q 'Kênh đăng ký' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeScreen.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
