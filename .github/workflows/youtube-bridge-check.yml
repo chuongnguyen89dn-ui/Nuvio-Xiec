@@ -28,13 +28,16 @@ jobs:
       - name: Prepare CI local properties
         run: |
           touch local.properties
-      - name: Build next block - Nuvio YouTube bridge
+      - name: Build next block - Home Search Channel integration
         run: |
           ROOT="vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOSCore"
           test -d "$ROOT"
           grep -R "InnerTube" "$ROOT" >/dev/null
           grep -R "Channel" "$ROOT" >/dev/null
           grep -R "Search" "$ROOT" >/dev/null
+          test -f vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS/Views/Browse/BrowseView.swift
+          test -f vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS/Views/Search/SearchView.swift
+          test -f vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS/Views/Channel/ChannelView.swift
       - name: Compile Nuvio shared YouTube profile only
         run: |
           ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
