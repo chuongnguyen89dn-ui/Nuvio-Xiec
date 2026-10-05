@@ -1,12 +1,6 @@
 name: YouTube Core Check
 
 on:
-  push:
-    branches: [youtube-from-137]
-    paths:
-      - 'vendor/SmartTubeIOS'
-      - '.gitmodules'
-      - '.github/workflows/youtube-core-check.yml'
   workflow_dispatch:
 
 jobs:
