@@ -1,4 +1,0 @@
-[submodule "vendor/SmartTubeIOS"]
-	path = vendor/SmartTubeIOS
-	url = https://github.com/milika/SmartTubeIOS.git
-# SmartTube source is pinned by gitlink; do not track branch head.
