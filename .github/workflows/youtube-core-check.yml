@@ -1,0 +1,26 @@
+name: YouTube Core Check
+
+on:
+  push:
+    branches: [youtube-from-137]
+    paths:
+      - 'vendor/SmartTubeIOS'
+      - '.gitmodules'
+      - '.github/workflows/youtube-core-check.yml'
+  workflow_dispatch:
+
+jobs:
+  core:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify pinned SmartTube source
+        run: |
+          test "$(git -C vendor/SmartTubeIOS rev-parse HEAD)" = "bb724e28cb05cca7e7da95c5b2e8d657ccc7ee03"
+      - name: Compile SmartTubeIOSCore only
+        run: |
+          cd vendor/SmartTubeIOS/SmartTubeIOS
+          swift build --target SmartTubeIOSCore
