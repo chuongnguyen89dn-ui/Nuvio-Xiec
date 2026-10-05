@@ -1,0 +1,27 @@
+name: YouTube Feature Check
+
+on:
+  push:
+    branches: [youtube-from-137]
+    paths:
+      - '.github/workflows/youtube-feature-check.yml'
+  workflow_dispatch:
+
+jobs:
+  home-search-channel:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify pinned SmartTube source
+        run: |
+          test "$(git -C vendor/SmartTubeIOS rev-parse HEAD)" = "bb724e28cb05cca7e7da95c5b2e8d657ccc7ee03"
+      - name: Compile Home Search Channel source only
+        run: |
+          cd vendor/SmartTubeIOS/SmartTubeIOS
+          sed -i '' 's|// swift-tools-version:6.0|// swift-tools-version:5.10|' Package.swift
+          sed -i '' '/swiftLanguageMode/d' Package.swift
+          ! grep -q 'swiftLanguageMode' Package.swift
+          swift build --target SmartTubeIOS
