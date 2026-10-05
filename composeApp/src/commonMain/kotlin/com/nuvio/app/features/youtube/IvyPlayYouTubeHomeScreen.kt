@@ -124,6 +124,7 @@ private fun YouTubeVideoCard(
     onVideoClick: (YouTubeVideo) -> Unit,
     onChannelClick: (YouTubeChannel) -> Unit,
 ) {
+    var menuExpanded by remember(video.videoId) { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(bottom = 18.dp).clickable { onVideoClick(video) }) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(Color(0xFF202020))) {
             AsyncImage(
@@ -195,8 +196,28 @@ private fun YouTubeVideoCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = { }) {
-                Icon(Icons.Default.MoreVert, "Thêm", tint = Color.White)
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, "Thêm", tint = Color.White)
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    if (channel != null) {
+                        DropdownMenuItem(
+                            text = { Text("Xem kênh") },
+                            onClick = {
+                                menuExpanded = false
+                                onChannelClick(channel)
+                            },
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Phát video") },
+                        onClick = {
+                            menuExpanded = false
+                            onVideoClick(video)
+                        },
+                    )
+                }
             }
         }
     }
