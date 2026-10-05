@@ -45,26 +45,11 @@ jobs:
         run: |
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
           test -f MPVKit/Package.swift
-      - name: Install official MobileVLCKit
-        shell: bash
-        run: |
-          set -euxo pipefail
-          sudo gem install cocoapods --no-document
-          cat > iosApp/Podfile <<'RUBY'
-          source 'https://github.com/CocoaPods/Specs.git'
-          platform :ios, '16.1'
-          target 'iosApp' do
-            pod 'MobileVLCKit', '3.7.3'
-          end
-          RUBY
-          cd iosApp
-          pod install
-
       - name: Build ORIGINAL Nuvio unsigned iPhone IPA
         shell: bash
         run: |
           set -o pipefail
-          xcodebuild -workspace iosApp/iosApp.xcworkspace -scheme iosApp -configuration Debug \
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug \
             -sdk iphoneos -destination 'generic/platform=iOS' \
             -derivedDataPath build/ios-device CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-iphone.log
           APP="$(find build/ios-device/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
