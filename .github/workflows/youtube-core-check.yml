@@ -6,6 +6,7 @@ on:
     branches: [youtube-from-137]
     paths:
       - '.github/workflows/youtube-core-check.yml'
+      - '.gitmodules'
 
 jobs:
   core:
