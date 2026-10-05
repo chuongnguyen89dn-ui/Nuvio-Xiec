@@ -1,13 +1,11 @@
 name: YouTube Core Check
 
 on:
-  workflow_dispatch:
   push:
     branches: [youtube-from-137]
     paths:
       - '.github/workflows/youtube-core-check.yml'
-      - '.gitmodules'
-      # one-shot core compatibility verification
+  workflow_dispatch:
 
 jobs:
   core:
@@ -24,5 +22,9 @@ jobs:
         run: |
           cd vendor/SmartTubeIOS/SmartTubeIOS
           sed -i '' 's|// swift-tools-version:6.0|// swift-tools-version:5.10|' Package.swift
-          sed -i '' 's|, swiftSettings: \[.swiftLanguageMode(.v6)\]||g' Package.swift
+          sed -i '' '/swiftLanguageMode/d' Package.swift
+          if grep -q 'swiftLanguageMode' Package.swift; then
+            echo "Swift 6 language mode still present"
+            exit 1
+          fi
           swift build --target SmartTubeIOSCore
