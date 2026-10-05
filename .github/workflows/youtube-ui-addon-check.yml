@@ -1,0 +1,18 @@
+name: YouTube UI Addon Check
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/youtube-ui-addon-check.yml']
+  workflow_dispatch:
+jobs:
+  addon:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Check addon-driven YouTube profile
+        run: |
+          grep -q 'loadChannels(addons' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
+          grep -q 'fetchCatalogPage' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeAddonRepository.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
