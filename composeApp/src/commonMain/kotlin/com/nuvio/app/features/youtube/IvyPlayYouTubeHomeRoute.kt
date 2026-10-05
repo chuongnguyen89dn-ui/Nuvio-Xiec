@@ -22,6 +22,7 @@ fun IvyPlayYouTubeHomeRoute(
     // Reset immediately when the installed sources/profile change, including removal.
     var channels by remember(profileState.activeProfile, addons) { mutableStateOf<List<YouTubeChannelSnapshot>>(emptyList()) }
     var selectedChannelId by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
+    var selectedPlaylistId by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
     var loading by remember(profileState.activeProfile, addons) { mutableStateOf(true) }
     var error by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
     var retry by remember { mutableStateOf(0) }
@@ -43,15 +44,32 @@ fun IvyPlayYouTubeHomeRoute(
         }
     }
     val selected = channels.firstOrNull { it.channel.channelId == selectedChannelId }
+    val selectedPlaylist = selected?.playlists?.firstOrNull { it.playlistId == selectedPlaylistId }
     PlatformBackHandler(enabled = true) {
-        if (selected != null) selectedChannelId = null else onClose()
+        when {
+            selectedPlaylist != null -> selectedPlaylistId = null
+            selected != null -> selectedChannelId = null
+            else -> onClose()
+        }
     }
-    if (selected != null) {
+    if (selected != null && selectedPlaylist != null) {
+        val playlistVideos = selectedPlaylist.videoIds.mapNotNull { id ->
+            (selected.videos + selected.shorts + selected.live).firstOrNull { it.videoId == id }
+        }
+        IvyPlayYouTubePlaylistScreen(
+            playlist = selectedPlaylist,
+            videos = playlistVideos,
+            modifier = modifier,
+            onBack = { selectedPlaylistId = null },
+            onVideoClick = onVideoClick,
+        )
+    } else if (selected != null) {
         IvyPlayYouTubeChannelScreen(
             snapshot = selected,
             modifier = modifier,
             onBack = { selectedChannelId = null },
             onVideoClick = onVideoClick,
+            onPlaylistClick = { selectedPlaylistId = it.playlistId },
         )
     } else {
         IvyPlayYouTubeHomeScreen(
