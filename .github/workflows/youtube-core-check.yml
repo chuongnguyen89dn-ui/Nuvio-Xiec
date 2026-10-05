@@ -2,6 +2,10 @@ name: YouTube Core Check
 
 on:
   workflow_dispatch:
+  push:
+    branches: [youtube-from-137]
+    paths:
+      - '.github/workflows/youtube-core-check.yml'
 
 jobs:
   core:
