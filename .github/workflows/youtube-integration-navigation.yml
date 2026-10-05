@@ -1,0 +1,19 @@
+name: YouTube Integration Navigation
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/youtube-integration-navigation.yml']
+  workflow_dispatch:
+jobs:
+  integration:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify integration sources
+        run: |
+          test -f composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeScreen.kt
+          test -f composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeChannelScreen.kt
+          test -f composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
