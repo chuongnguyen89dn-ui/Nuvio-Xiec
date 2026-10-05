@@ -1,9 +1,16 @@
 package com.nuvio.app
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.uikit.OnFocusBehavior
 import androidx.compose.ui.window.ComposeUIViewController
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NativeProfileSwitcherController
+import com.nuvio.app.features.profiles.IvyPlayContentMode
+import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.youtube.publishNativeYouTubeProfileVisible
 import com.nuvio.app.navigation.AppRoute
 import platform.UIKit.UIColor
 import platform.UIKit.UIViewController
@@ -12,6 +19,7 @@ private val nuvioBackgroundColor = UIColor(red = 0.051, green = 0.051, blue = 0.
 
 @Suppress("unused")
 fun MainViewController(): UIViewController = nuvioComposeViewController {
+    NuvioNativeYouTubeProfileObserver()
     App()
 }
 
@@ -29,6 +37,7 @@ fun MainViewController(
 ): UIViewController {
     val initialTab = AppScreenTab.fromName(initialTabName)
     return nuvioComposeViewController {
+        NuvioNativeYouTubeProfileObserver()
         App(
             initialTab = initialTab,
             useNativeNavigation = true,
@@ -96,8 +105,20 @@ fun AppGateViewController(
     view.backgroundColor = UIColor.clearColor
 }
 
+@Composable
+private fun NuvioNativeYouTubeProfileObserver() {
+    val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
+    val visible = profileState.activeProfile?.contentMode == IvyPlayContentMode.YOUTUBE
+    DisposableEffect(visible) {
+        publishNativeYouTubeProfileVisible(visible)
+        onDispose {
+            if (visible) publishNativeYouTubeProfileVisible(false)
+        }
+    }
+}
+
 private fun nuvioComposeViewController(
-    content: @androidx.compose.runtime.Composable () -> Unit,
+    content: @Composable () -> Unit,
 ): UIViewController = ComposeUIViewController(
     configure = { onFocusBehavior = OnFocusBehavior.DoNothing },
     content = content,
