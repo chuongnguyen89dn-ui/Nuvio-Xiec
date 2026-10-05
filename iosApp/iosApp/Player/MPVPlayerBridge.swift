@@ -110,6 +110,8 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
     private let vlc = VLCMediaPlayer(options: ["--network-caching=1500", "--http-reconnect", "--avcodec-hw=any"])
     private var lastURL: String?
     private var lastHeaders: [String: String] = [:]
+    private var lastAudioURL: String?
+    private var lastSubtitles: [VLCSubtitle] = []
     private(set) var isLoading = false
     private(set) var isEnded = false
     private(set) var errorMessage = ""
@@ -130,6 +132,8 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
         guard let url = URL(string: urlString) else { errorMessage = "Invalid media URL"; return }
         lastURL = urlString
         lastHeaders = requestHeaders
+        lastAudioURL = audioUrl
+        lastSubtitles = subtitles
         errorMessage = ""
         isEnded = false
         isLoading = true
@@ -138,7 +142,8 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
         if let ua = header("User-Agent", in: requestHeaders) { media.addOption(":http-user-agent=\(ua)") }
         if let ref = header("Referer", in: requestHeaders) { media.addOption(":http-referrer=\(ref)") }
         vlc.media = media
-        vlc.play()
+        // Loading prepares the media only. Nuvio owns whether playback starts;
+        // PlatformPlayerSurface calls play()/pause() from playWhenReady.
 
         // VLC owns probing/demux/decoding. Additional audio/subtitle resources stay optional.
         if let audioUrl, let u = URL(string: audioUrl) { vlc.addPlaybackSlave(u, type: .audio, enforce: true) }
@@ -155,7 +160,11 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
     func pausePlayback() { vlc.pause() }
     func seekToMs(_ ms: Int64) { vlc.time = VLCTime(int: Int32(clamping: ms)) }
     func seekByMs(_ ms: Int64) { seekToMs(max(0, positionMs + ms)) }
-    func retryPlayback() { if let lastURL { loadFile(lastURL, audioUrl: nil, requestHeaders: lastHeaders, subtitles: []) } }
+    func retryPlayback() {
+        if let lastURL {
+            loadFile(lastURL, audioUrl: lastAudioURL, requestHeaders: lastHeaders, subtitles: lastSubtitles)
+        }
+    }
     func setSpeed(_ speed: Float) { currentSpeed = speed; vlc.rate = speed }
     func setMuted(_ muted: Bool) { vlc.audio?.isMuted = muted }
     var isPlayerPlaying: Bool { vlc.isPlaying }
