@@ -1,0 +1,50 @@
+name: Nuvio YouTube Final IPA
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/nuvio-youtube-final-ipa.yml']
+jobs:
+  build-nuvio-ipa:
+    runs-on: macos-15
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Configure Nuvio Cloud account sync
+        shell: bash
+        run: |
+          cat > local.properties <<'EOF'
+          NUVIO_SUPABASE_URL=https://api.nuvio.tv
+          NUVIO_SUPABASE_ANON_KEY=sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN
+          NUVIO_SUPABASE_FALLBACK_URL=
+          EOF
+      - name: Fetch Nuvio player dependency
+        run: |
+          git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
+          test -f MPVKit/Package.swift
+      - name: Build final Nuvio unsigned IPA
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -configuration Debug -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build/ios-device CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build-iphone.log
+          APP="$(find build/ios-device/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
+          test -n "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test "$BUNDLE_ID" = "com.nuvio.app"
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          ditto -c -k --sequesterRsrc --keepParent Payload Nuvio-YouTube-final-unsigned.ipa
+          printf 'commit=%s\nrun_id=%s\nbundle_id=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$BUNDLE_ID" > Nuvio-build-identity.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nuvio-YouTube-final-iPhone-unsigned
+          path: |
+            Nuvio-YouTube-final-unsigned.ipa
+            Nuvio-build-identity.txt
+            build-iphone.log
+          retention-days: 7
