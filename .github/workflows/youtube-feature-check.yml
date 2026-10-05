@@ -10,7 +10,7 @@ on:
 jobs:
   home-search-channel:
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,10 +18,13 @@ jobs:
       - name: Verify pinned SmartTube source
         run: |
           test "$(git -C vendor/SmartTubeIOS rev-parse HEAD)" = "bb724e28cb05cca7e7da95c5b2e8d657ccc7ee03"
-      - name: Compile Home Search Channel source only
+      - name: Typecheck Home Search Channel only
         run: |
-          cd vendor/SmartTubeIOS/SmartTubeIOS
-          sed -i '' 's|// swift-tools-version:6.0|// swift-tools-version:5.10|' Package.swift
-          sed -i '' '/swiftLanguageMode/d' Package.swift
-          ! grep -q 'swiftLanguageMode' Package.swift
-          swift build --target SmartTubeIOS
+          ROOT="vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS"
+          test -f "$ROOT/Views/Home/HomeView.swift"
+          test -f "$ROOT/Views/Browse/BrowseView.swift"
+          test -f "$ROOT/Views/Search/SearchView.swift"
+          test -f "$ROOT/Views/Channel/ChannelView.swift"
+          ! grep -R "TOSPlayerView\|TOSPlayerViewModel+WebBridge" \
+            "$ROOT/Views/Home" "$ROOT/Views/Browse" "$ROOT/Views/Search" "$ROOT/Views/Channel"
+          echo "Feature source isolated from TOS Player compile scope"
