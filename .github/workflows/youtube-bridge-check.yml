@@ -22,6 +22,32 @@ jobs:
           cd vendor/SmartTubeIOS/SmartTubeIOS
           sed -i '' 's/swift-tools-version: 6.0/swift-tools-version: 5.10/' Package.swift
           sed -i '' '/swiftLanguageMode/d' Package.swift
+          python3 - <<'PY'
+from pathlib import Path
+p = Path("Sources/SmartTubeIOSCore/HomeViewModel.swift")
+s = p.read_text()
+s = s.replace(
+'''for await note in NotificationCenter.default.notifications(named: .hideVideoFromFeed) {
+                    guard let self, let videoId = note.userInfo?["videoId"] as? String else { continue }
+                    self.removeVideo(id: videoId)
+                }''',
+'''for await videoId in NotificationCenter.default.notifications(named: .hideVideoFromFeed)
+                    .compactMap({ $0.userInfo?["videoId"] as? String }) {
+                    guard let self else { continue }
+                    self.removeVideo(id: videoId)
+                }''')
+s = s.replace(
+'''for await note in NotificationCenter.default.notifications(named: .hideChannelFromFeed) {
+                    guard let self, let channelId = note.userInfo?["channelId"] as? String else { continue }
+                    self.removeChannel(id: channelId)
+                }''',
+'''for await channelId in NotificationCenter.default.notifications(named: .hideChannelFromFeed)
+                    .compactMap({ $0.userInfo?["channelId"] as? String }) {
+                    guard let self else { continue }
+                    self.removeChannel(id: channelId)
+                }''')
+p.write_text(s)
+PY
           swift build --target SmartTubeIOSCore
 
   youtube-features:
