@@ -1,5 +1,5 @@
-sha=f8e05b8077a81f9854560e654d9b3479a5237890
-run_id=37258740036
+sha=dc10d0ea98b14f09bb4f60de69042de749e43da5
+run_id=37296960479
 run_attempt=1
-job_status=success
-updated_at=2026-10-05T03:34:40Z
+job_status=failure
+updated_at=2026-10-05T10:50:45Z
