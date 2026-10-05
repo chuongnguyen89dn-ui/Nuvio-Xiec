@@ -88,7 +88,12 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func disableSubtitles() {}
 
     func getIsPlaying() -> Bool { playerVC?.isPlaying ?? false }
-    func getIsLoading() -> Bool { playerVC?.isLoading ?? false }
+    func getIsLoading() -> Bool {
+        guard let playerVC else { return false }
+        // VLC can transiently report .buffering while decoded frames are still
+        // advancing. Do not cover actively playing video with Nuvio's spinner.
+        return playerVC.isLoading && !playerVC.isPlaying
+    }
     func getIsEnded() -> Bool { playerVC?.isEnded ?? false }
     func getDurationMs() -> Int64 { playerVC?.durationMs ?? 0 }
     func getPositionMs() -> Int64 { playerVC?.positionMs ?? 0 }
