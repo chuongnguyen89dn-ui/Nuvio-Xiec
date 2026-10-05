@@ -1,4 +1,4 @@
-name: YouTube UI Small Check
+name: YouTube UI Parallel Checks
 
 on:
   push:
@@ -9,12 +9,48 @@ on:
   workflow_dispatch:
 
 jobs:
-  compile-youtube-profile:
+  home-shell:
     runs-on: macos-15
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - name: Prepare CI
-        run: touch local.properties
-      - name: Compile Nuvio iOS Kotlin
+      - run: touch local.properties
+      - name: Compile Home shell
         run: ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
+
+  channel-navigation:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify Channel navigation
+        run: |
+          grep -q 'IvyPlayYouTubeChannelScreen' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
+          grep -q 'onChannelClick' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeScreen.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
+
+  addon-dynamic-data:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify dynamic addon source
+        run: |
+          grep -q 'loadChannels(addons' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
+          grep -q 'fetchCatalogPage' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeAddonRepository.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
+
+  youtube-navigation:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify YouTube navigation shell
+        run: |
+          grep -q 'Kênh đăng ký' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeScreen.kt
+          grep -q '"Bạn"' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeScreen.kt
+          grep -q 'ArrowBack' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeScreen.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
