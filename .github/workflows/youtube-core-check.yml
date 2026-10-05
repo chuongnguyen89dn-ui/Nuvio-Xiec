@@ -1,10 +1,6 @@
 name: YouTube Core Check
 
 on:
-  push:
-    branches: [youtube-from-137]
-    paths:
-      - '.github/workflows/youtube-core-check.yml'
   workflow_dispatch:
 
 # verified workflow revision: core-swift5-v2
