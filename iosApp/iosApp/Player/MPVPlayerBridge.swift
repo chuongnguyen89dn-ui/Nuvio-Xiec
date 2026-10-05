@@ -92,7 +92,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         guard let playerVC else { return false }
         // VLC can transiently report .buffering while decoded frames are still
         // advancing. Do not cover actively playing video with Nuvio's spinner.
-        return playerVC.isLoading && !playerVC.isPlaying
+        return playerVC.isSeekPending || (playerVC.isLoading && !playerVC.isPlaying)
     }
     func getIsEnded() -> Bool { playerVC?.isEnded ?? false }
     func getDurationMs() -> Int64 { playerVC?.durationMs ?? 0 }
@@ -116,10 +116,19 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
     private(set) var isEnded = false
     private(set) var errorMessage = ""
     private(set) var currentSpeed: Float = 1
+    private var pendingSeekTargetMs: Int64?
 
     var isPlaying: Bool { vlc.isPlaying }
     var durationMs: Int64 { Int64(vlc.media?.length.intValue ?? 0) }
-    var positionMs: Int64 { Int64(vlc.time.intValue) }
+    var positionMs: Int64 {
+        let value = Int64(vlc.time.intValue)
+        if let target = pendingSeekTargetMs, abs(value - target) <= 2_500 {
+            pendingSeekTargetMs = nil
+            isLoading = false
+        }
+        return value
+    }
+    var isSeekPending: Bool { pendingSeekTargetMs != nil }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -134,6 +143,7 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
         lastHeaders = requestHeaders
         lastAudioURL = audioUrl
         lastSubtitles = subtitles
+        pendingSeekTargetMs = nil
         errorMessage = ""
         isEnded = false
         isLoading = true
@@ -158,7 +168,13 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
 
     func playPlayback() { vlc.play() }
     func pausePlayback() { vlc.pause() }
-    func seekToMs(_ ms: Int64) { vlc.time = VLCTime(int: Int32(clamping: ms)) }
+    func seekToMs(_ ms: Int64) {
+        pendingSeekTargetMs = max(0, ms)
+        isLoading = true
+        isEnded = false
+        errorMessage = ""
+        vlc.time = VLCTime(int: Int32(clamping: ms))
+    }
     func seekByMs(_ ms: Int64) { seekToMs(max(0, positionMs + ms)) }
     func retryPlayback() {
         if let lastURL {
@@ -185,7 +201,12 @@ final class MPVPlayerViewController: UIViewController, VLCMediaPlayerDelegate {
         case .opening, .buffering:
             isLoading = true
         case .playing, .paused:
-            isLoading = false
+            // A VLC state transition to playing can arrive before a far seek
+            // has actually reached its target. Keep Nuvio in loading state
+            // until the reported playback clock reaches the requested seek.
+            if pendingSeekTargetMs == nil {
+                isLoading = false
+            }
         case .ended:
             isLoading = false; isEnded = true
         case .error:
