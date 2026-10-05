@@ -42,6 +42,13 @@ fun IvyPlayYouTubeHomeScreen(
     var selectedTab by remember { mutableStateOf("Home") }
     val videos = channels.flatMap { it.videos + it.live }.distinctBy { it.videoId }
     val shorts = channels.flatMap { it.shorts }.distinctBy { it.videoId }
+    val homeVideos = channels.flatMap { snapshot ->
+        val all = snapshot.videos + snapshot.shorts + snapshot.live
+        val ordered = snapshot.homeSections.flatMap { section ->
+            section.itemIds.mapNotNull { id -> all.firstOrNull { it.videoId == id } }
+        }
+        if (ordered.isNotEmpty()) ordered else snapshot.videos + snapshot.live
+    }.distinctBy { it.videoId }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Black,
@@ -79,10 +86,13 @@ fun IvyPlayYouTubeHomeScreen(
                         }
                     }
                 } else {
-                    val visibleVideos = (if (selectedTab == "Shorts") shorts else videos)
+                    val visibleVideos = (if (selectedTab == "Shorts") shorts else homeVideos)
                         .filter { query.isBlank() || it.title.contains(query, ignoreCase = true) || it.channelName.orEmpty().contains(query, ignoreCase = true) }
                     if (visibleVideos.isEmpty()) item {
                         Text("Không có video phù hợp trong dữ liệu addon.", color = Color.White, modifier = Modifier.padding(24.dp))
+                    }
+                    if (selectedTab == "Home" && shorts.isNotEmpty()) {
+                        item { YouTubeShortsShelf(shorts, onVideoClick) }
                     }
                     items(visibleVideos, key = { it.videoId }) { video ->
                         val channel = channels.firstOrNull { it.channel.channelId == video.channelId }?.channel
