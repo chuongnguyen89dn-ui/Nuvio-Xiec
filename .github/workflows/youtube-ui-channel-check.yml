@@ -1,0 +1,14 @@
+name: YouTube UI Channel Check
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/youtube-ui-channel-check.yml']
+  workflow_dispatch:
+jobs:
+  channel:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - run: ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
