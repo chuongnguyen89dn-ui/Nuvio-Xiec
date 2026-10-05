@@ -1,0 +1,19 @@
+name: YouTube Final Addon Flow Check
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/youtube-final-addon-flow-check.yml']
+  workflow_dispatch:
+jobs:
+  final-check:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify final YouTube integration
+        run: |
+          grep -Fq 'fetchCatalogPage' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeAddonRepository.kt
+          grep -Fq 'onVideoClick' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
+          test ! -e vendor/SmartTubeIOS
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
