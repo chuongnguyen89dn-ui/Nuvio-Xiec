@@ -60,23 +60,34 @@ object IvyPlayYouTubeAddonRepository {
                             channelName = channel.displayName ?: channel.name,
                         )
                     }
+                    val sectionType = catalogYouTubeSectionType(catalog.id, catalog.name)
                     YouTubeChannelSnapshot(
                         channel = channel,
                         homeSections = listOf(
                             YouTubeHomeSection(
-                                id = "${catalog.id}:videos",
-                                title = "Videos",
-                                type = YouTubeSectionType.VIDEOS,
+                                id = "${catalog.id}:${sectionType.name.lowercase()}",
+                                title = catalog.name,
+                                type = sectionType,
                                 itemIds = videos.map(YouTubeVideo::videoId),
                             ),
                         ),
-                        videos = videos,
-                        shorts = emptyList(),
-                        live = emptyList(),
+                        videos = if (sectionType == YouTubeSectionType.VIDEOS || sectionType == YouTubeSectionType.FEATURED || sectionType == YouTubeSectionType.CUSTOM) videos else emptyList(),
+                        shorts = if (sectionType == YouTubeSectionType.SHORTS) videos else emptyList(),
+                        live = if (sectionType == YouTubeSectionType.LIVE) videos else emptyList(),
                         playlists = emptyList(),
                     )
                 }
             }
         }.awaitAll()
     }
+    private fun catalogYouTubeSectionType(catalogId: String, catalogName: String): YouTubeSectionType {
+        val identity = "$catalogId $catalogName".lowercase()
+        return when {
+            "short" in identity -> YouTubeSectionType.SHORTS
+            "live" in identity || "trực tiếp" in identity -> YouTubeSectionType.LIVE
+            "featured" in identity || "nổi bật" in identity -> YouTubeSectionType.FEATURED
+            else -> YouTubeSectionType.VIDEOS
+        }
+    }
+
 }
