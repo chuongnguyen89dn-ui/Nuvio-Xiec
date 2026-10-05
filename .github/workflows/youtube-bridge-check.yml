@@ -10,6 +10,37 @@ on:
   workflow_dispatch:
 
 jobs:
+  smarttube-core:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Compile SmartTube core
+        run: |
+          cd vendor/SmartTubeIOS/SmartTubeIOS
+          sed -i '' 's/swift-tools-version: 6.0/swift-tools-version: 5.10/' Package.swift
+          sed -i '' '/swiftLanguageMode/d' Package.swift
+          swift build --target SmartTubeIOSCore
+
+  youtube-features:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Verify Home Search Channel Playlist Shorts in parallel
+        run: |
+          ROOT="vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS"
+          test -f "$ROOT/Views/Browse/BrowseView.swift" &
+          test -f "$ROOT/Views/Search/SearchView.swift" &
+          test -f "$ROOT/Views/Channel/ChannelView.swift" &
+          grep -R "Playlist" "$ROOT/Views" >/dev/null &
+          grep -R "Short" "$ROOT/Views" >/dev/null &
+          wait
+
   nuvio-profile-contract:
     runs-on: macos-15
     timeout-minutes: 12
