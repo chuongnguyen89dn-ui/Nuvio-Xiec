@@ -53,7 +53,7 @@ fun IvyPlayYouTubeHomeScreen(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Black,
         topBar = { YouTubeTopBar(onClose, { showSearch = !showSearch }) },
-        bottomBar = { YouTubeBottomBar(selectedTab, { selectedTab = it }, onClose) },
+        bottomBar = { YouTubeBottomBar(selectedTab) { selectedTab = it } },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -76,7 +76,7 @@ fun IvyPlayYouTubeHomeScreen(
                 }
             }
             if (channels.isNotEmpty()) {
-                if (selectedTab == "Channels") {
+                if (selectedTab == "Subscriptions") {
                     items(channels, key = { it.channel.channelId }) { snapshot ->
                         Row(Modifier.fillMaxWidth().clickable { onChannelClick(snapshot.channel) }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically) {
@@ -86,7 +86,7 @@ fun IvyPlayYouTubeHomeScreen(
                         }
                     }
                 } else {
-                    val visibleVideos = (if (selectedTab == "Shorts") shorts else homeVideos)
+                    val visibleVideos = (if (selectedTab == "Shorts") shorts else if (selectedTab == "You") emptyList() else homeVideos)
                         .filter { query.isBlank() || it.title.contains(query, ignoreCase = true) || it.channelName.orEmpty().contains(query, ignoreCase = true) }
                     if (visibleVideos.isEmpty()) item {
                         Text("Không có video phù hợp trong dữ liệu addon.", color = Color.White, modifier = Modifier.padding(24.dp))
@@ -112,7 +112,8 @@ private fun YouTubeTopBar(onClose: () -> Unit, onSearch: () -> Unit) {
         Spacer(Modifier.width(6.dp))
         Text("YouTube", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onSearch) { Icon(Icons.Default.Search, "Tìm video", tint = Color.White) }
+        IconButton(onClick = { }) { Icon(Icons.Default.NotificationsNone, "Thông báo", tint = Color.White) }
+        IconButton(onClick = onSearch) { Icon(Icons.Default.Search, "Tìm kiếm", tint = Color.White) }
     }
 }
 
@@ -194,6 +195,9 @@ private fun YouTubeVideoCard(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            IconButton(onClick = { }) {
+                Icon(Icons.Default.MoreVert, "Thêm", tint = Color.White)
+            }
         }
     }
 }
@@ -235,18 +239,26 @@ private fun YouTubeShortsShelf(shorts: List<YouTubeVideo>, onVideoClick: (YouTub
 }
 
 @Composable
-private fun YouTubeBottomBar(selected: String, onSelect: (String) -> Unit, onClose: () -> Unit) {
-    Row(Modifier.fillMaxWidth().height(64.dp).background(Color.Black),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceAround) {
-        listOf("Home" to Icons.Default.Home, "Shorts" to Icons.Default.SmartDisplay, "Channels" to Icons.Default.Subscriptions).forEach { (label, icon) ->
-            TextButton(onClick = { onSelect(label) }) {
+private fun YouTubeBottomBar(selected: String, onSelect: (String) -> Unit) {
+    val tabs = listOf(
+        Triple("Home", "Trang chủ", Icons.Default.Home),
+        Triple("Shorts", "Shorts", Icons.Default.SmartDisplay),
+        Triple("Subscriptions", "Kênh đăng ký", Icons.Default.Subscriptions),
+        Triple("You", "Bạn", Icons.Default.AccountCircle),
+    )
+    Row(
+        Modifier.fillMaxWidth().height(68.dp).background(Color.Black),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceAround,
+    ) {
+        tabs.forEach { (id, label, icon) ->
+            TextButton(onClick = { onSelect(id) }, contentPadding = PaddingValues(horizontal = 6.dp)) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(icon, label, tint = if (selected == label) Color.White else Color.Gray)
-                    Text(label, color = if (selected == label) Color.White else Color.Gray, fontSize = 10.sp)
+                    Icon(icon, label, tint = if (selected == id) Color.White else Color(0xFFBDBDBD))
+                    Text(label, color = if (selected == id) Color.White else Color(0xFFBDBDBD), fontSize = 10.sp)
                 }
             }
         }
-        TextButton(onClick = onClose) { Text("Nuvio") }
     }
 }
 
