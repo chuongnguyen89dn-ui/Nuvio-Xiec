@@ -540,6 +540,7 @@ final class AppNavigationCoordinator: ObservableObject {
     @Published private(set) var isMainContentMounted = false
     @Published private(set) var isMainContentVisible = false
     @Published private(set) var isAppReady = false
+    @Published private(set) var nativeTabBarVisible = true
     @Published private var localizedTabTitles: [NuvioAppTab: String] = [:]
     @Published private(set) var localizedSwitchProfileTitle = ""
     @Published private(set) var localizedAddProfileTitle = ""
@@ -552,8 +553,19 @@ final class AppNavigationCoordinator: ObservableObject {
     let appGateController = AppGateController()
     let profileSwitcherController = NativeProfileSwitcherController()
     let profileTabInteraction = NativeProfileTabInteractionCoordinator()
+    private var tabChromeCancellable: AnyCancellable?
 
     init() {
+        nativeTabBarVisible =
+            UserDefaults.standard.object(forKey: "NuvioNativeTabBarVisible") as? Bool ?? true
+        tabChromeCancellable = NotificationCenter.default
+            .publisher(for: Notification.Name("NuvioNativeTabChromeDidChange"))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.nativeTabBarVisible =
+                    UserDefaults.standard.object(forKey: "NuvioNativeTabBarVisible") as? Bool ?? true
+            }
+
         profileTabInteraction.onLongPress = { [weak self] in
             guard let self, self.isAppReady else { return }
             self.isProfileSwitcherPresented = true
@@ -823,7 +835,9 @@ struct TabContentView: View {
         // stack. Applying it here keeps the authentication/profile gate truly
         // full-screen on iOS 26, where a modifier on TabView itself is ignored.
         .toolbar(
-            usesNativeTabBar && appCoordinator.isMainContentVisible && coordinator.path.isEmpty
+            appCoordinator.nativeTabBarVisible &&
+                appCoordinator.isMainContentVisible &&
+                coordinator.path.isEmpty
                 ? Visibility.visible
                 : Visibility.hidden,
             for: .tabBar
