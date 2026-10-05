@@ -1,0 +1,18 @@
+name: YouTube Video Menu Check
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/youtube-ui-video-menu-check.yml']
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify remaining YouTube feature
+        run: |
+          grep -Fq 'MoreVert' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/*.kt
+          grep -Fq 'YouTubeVideoCard' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/*.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
