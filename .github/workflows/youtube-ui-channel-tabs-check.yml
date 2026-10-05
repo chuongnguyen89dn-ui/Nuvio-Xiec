@@ -1,0 +1,19 @@
+name: YouTube Channel Tabs Check
+on:
+  push:
+    branches: [youtube-from-137]
+    paths: ['.github/workflows/youtube-ui-channel-tabs-check.yml']
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: macos-15
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - run: touch local.properties
+      - name: Verify isolated block
+        run: |
+          grep -q 'PLAYLISTS' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeChannelScreen.kt
+          grep -q 'LIVE' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeChannelScreen.kt
+          grep -q 'SHORTS' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeChannelScreen.kt
+          ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
