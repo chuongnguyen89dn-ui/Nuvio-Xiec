@@ -500,10 +500,8 @@ internal fun MainAppContent(
         profileState.activeProfile?.contentMode,
         selectedTab,
     ) {
-        val visible = !useNativeNavigation &&
+        val visible =
             (profileState.activeProfile?.contentMode != IvyPlayContentMode.YOUTUBE || selectedTab != AppScreenTab.Home) &&
-            liquidGlassNativeTabBarSupported &&
-            liquidGlassNativeTabBarEnabled &&
             initialHomeReady &&
             !profileSwitchLoading &&
             currentRoute is TabsRoute
