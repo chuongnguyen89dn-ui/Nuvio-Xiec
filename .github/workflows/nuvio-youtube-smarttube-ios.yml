@@ -65,6 +65,19 @@ jobs:
           s = p.read_text()
           s = s.replace("// swift-tools-version:6.0", "// swift-tools-version:5.10")
           s = s.replace("swiftSettings: [.swiftLanguageMode(.v6)]", "swiftSettings: []")
+          # Upstream Swift 6 accepts ignoring transition()'s returned flush closure.
+          # In Swift 5 compatibility mode that is diagnosed as an unused function value,
+          # so explicitly discard it without changing runtime behavior.
+          loading = Path("SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS/ViewModels/PlaybackViewModel+Loading.swift")
+          t = loading.read_text()
+          t = t.replace("""            tracker.transition(
+                to: video.id, cpn: InnerTubeAPI.generateCPN(),
+                flushPosition: 0, flushDuration: 0)
+""", """            _ = tracker.transition(
+                to: video.id, cpn: InnerTubeAPI.generateCPN(),
+                flushPosition: 0, flushDuration: 0)
+""")
+          loading.write_text(t)
           p.write_text(s)
           PY
           grep -q 'swift-tools-version:5.10' SmartTubeIOS/SmartTubeIOS/Package.swift
