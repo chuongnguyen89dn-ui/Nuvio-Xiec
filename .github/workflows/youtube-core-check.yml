@@ -14,7 +14,9 @@ jobs:
       - name: Verify pinned SmartTube source
         run: |
           test "$(git -C vendor/SmartTubeIOS rev-parse HEAD)" = "bb724e28cb05cca7e7da95c5b2e8d657ccc7ee03"
-      - name: Compile SmartTubeIOSCore only
+      - name: Compile SmartTubeIOSCore only with Nuvio-compatible Swift mode
         run: |
           cd vendor/SmartTubeIOS/SmartTubeIOS
+          sed -i '' 's|// swift-tools-version:6.0|// swift-tools-version:5.10|' Package.swift
+          sed -i '' 's|, swiftSettings: \[.swiftLanguageMode(.v6)\]||g' Package.swift
           swift build --target SmartTubeIOSCore
