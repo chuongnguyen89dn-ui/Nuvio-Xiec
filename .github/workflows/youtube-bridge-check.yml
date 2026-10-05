@@ -1,7 +1,6 @@
 name: YouTube Bridge Check
 
 on:
-  workflow_dispatch:
   push:
     branches: [youtube-from-137]
     paths:
