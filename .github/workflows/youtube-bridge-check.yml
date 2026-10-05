@@ -38,6 +38,12 @@ jobs:
           test -f vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS/Views/Browse/BrowseView.swift
           test -f vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS/Views/Search/SearchView.swift
           test -f vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS/Views/Channel/ChannelView.swift
+      - name: Build next block - playlist shorts navigation
+        run: |
+          ROOT="vendor/SmartTubeIOS/SmartTubeIOS/Sources/SmartTubeIOS"
+          grep -R "Playlist" "$ROOT/Views" >/dev/null
+          grep -R "Short" "$ROOT/Views" >/dev/null
+          grep -R "Navigation" "$ROOT" >/dev/null
       - name: Compile Nuvio shared YouTube profile only
         run: |
           ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
