@@ -25,6 +25,9 @@ jobs:
           grep -q 'IvyPlayYouTubeHomeScreen' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
           grep -q 'IvyPlayYouTubeChannelScreen' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/IvyPlayYouTubeHomeRoute.kt
           grep -q 'YouTubeChannelSnapshot' composeApp/src/commonMain/kotlin/com/nuvio/app/features/youtube/YouTubeChannelResolver.kt
+      - name: Prepare CI local properties
+        run: |
+          touch local.properties
       - name: Compile Nuvio shared YouTube profile only
         run: |
           ./gradlew :composeApp:compileKotlinIosArm64 --no-daemon --stacktrace
