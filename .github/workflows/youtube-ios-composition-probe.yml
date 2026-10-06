@@ -1,0 +1,103 @@
+name: YouTube iOS Composition Probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/youtube-ios-composition-probe.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install yt-dlp
+        run: python3 -m pip install --user -U yt-dlp
+
+      - name: Resolve test video 313 + 140
+        shell: bash
+        run: |
+          set -euxo pipefail
+          YTDLP="$HOME/Library/Python/3.9/bin/yt-dlp"
+          if [ ! -x "$YTDLP" ]; then YTDLP="$(command -v yt-dlp)"; fi
+          VIDEO_ID="B1qT38bVsXc"
+          "$YTDLP" --extractor-args "youtube:player_client=visionos" -f 313 -g "https://www.youtube.com/watch?v=$VIDEO_ID" > video.url
+          "$YTDLP" --extractor-args "youtube:player_client=visionos" -f 140 -g "https://www.youtube.com/watch?v=$VIDEO_ID" > audio.url
+          test -s video.url
+          test -s audio.url
+          echo "Resolved 313 + 140"
+
+      - name: Write AVFoundation composition probe
+        shell: bash
+        run: |
+          cat > /tmp/YTCompositionProbe.swift <<'SWIFT'
+          import Foundation
+          import AVFoundation
+
+          @main
+          struct Probe {
+              static func main() async throws {
+                  let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+                  let v = try String(contentsOf: cwd.appendingPathComponent("video.url")).trimmingCharacters(in: .whitespacesAndNewlines)
+                  let a = try String(contentsOf: cwd.appendingPathComponent("audio.url")).trimmingCharacters(in: .whitespacesAndNewlines)
+                  guard let vu = URL(string: v), let au = URL(string: a) else { fatalError("bad URL") }
+
+                  let headers = ["User-Agent": "Mozilla/5.0", "Referer": "https://www.youtube.com/"]
+                  let opts: [String: Any] = ["AVURLAssetHTTPHeaderFieldsKey": headers]
+                  let va = AVURLAsset(url: vu, options: opts)
+                  let aa = AVURLAsset(url: au, options: opts)
+
+                  let vTracks = try await va.loadTracks(withMediaType: .video)
+                  let aTracks = try await aa.loadTracks(withMediaType: .audio)
+                  guard let vt = vTracks.first else { fatalError("313: AVFoundation found no video track") }
+                  guard let at = aTracks.first else { fatalError("140: AVFoundation found no audio track") }
+
+                  let vd = try await va.load(.duration)
+                  let ad = try await aa.load(.duration)
+                  let duration = CMTimeMinimum(vd, ad)
+                  print("video duration=\(CMTimeGetSeconds(vd)) audio duration=\(CMTimeGetSeconds(ad))")
+
+                  let c = AVMutableComposition()
+                  guard let cv = c.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
+                        let ca = c.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+                  else { fatalError("cannot create composition tracks") }
+
+                  try cv.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: vt, at: .zero)
+                  try ca.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: at, at: .zero)
+
+                  let item = AVPlayerItem(asset: c)
+                  let player = AVPlayer(playerItem: item)
+
+                  for _ in 0..<200 {
+                      if item.status == .readyToPlay { break }
+                      if item.status == .failed { throw item.error ?? NSError(domain:"probe", code:2) }
+                      try await Task.sleep(nanoseconds: 100_000_000)
+                  }
+                  guard item.status == .readyToPlay else { fatalError("not readyToPlay") }
+                  print("READY_TO_PLAY")
+
+                  let target = CMTime(seconds: 300, preferredTimescale: 600)
+                  await player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+                  let actual = CMTimeGetSeconds(player.currentTime())
+                  print("SEEK target=300 actual=\(actual)")
+                  guard abs(actual - 300) < 1.0 else { fatalError("seek mismatch") }
+
+                  player.play()
+                  try await Task.sleep(nanoseconds: 2_000_000_000)
+                  let after = CMTimeGetSeconds(player.currentTime())
+                  print("PLAY_AFTER_SEEK current=\(after)")
+                  guard after > actual else { fatalError("timeline did not advance") }
+                  print("PASS: composition ready + seek + playback timeline")
+              }
+          }
+          SWIFT
+          xcrun swiftc -parse-as-library /tmp/YTCompositionProbe.swift -framework AVFoundation -o /tmp/YTCompositionProbe
+
+      - name: Run composition + seek probe
+        run: /tmp/YTCompositionProbe
