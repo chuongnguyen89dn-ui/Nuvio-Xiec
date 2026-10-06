@@ -206,7 +206,6 @@ internal fun StreamDestination(
             providerAddonId = stream.addonId,
             contentType = launch.type,
             videoId = effectiveVideoId,
-            preferredAddonManifestUrl = launch.preferredAddonManifestUrl,
             parentMetaId = launch.parentMetaId ?: effectiveVideoId,
             parentMetaType = launch.parentMetaType ?: launch.type,
             torrentInfoHash = infoHash,
@@ -271,11 +270,13 @@ internal fun StreamDestination(
         if (reuseHandled) return@LaunchedEffect
         reuseHandled = true
         if (launch.manualSelection) return@LaunchedEffect
+        // The saved-link cache is keyed by media ID, not addon source. Resolve explicit
+        // addon launches again so another source's cached URL cannot override them.
+        if (launch.preferredAddonManifestUrl != null) return@LaunchedEffect
         if (!playerSettings.streamReuseLastLinkEnabled) return@LaunchedEffect
         val cacheKey = StreamLinkCacheRepository.contentKey(
             type = launch.type,
             videoId = effectiveVideoId,
-            preferredAddonManifestUrl = launch.preferredAddonManifestUrl,
             parentMetaId = launch.parentMetaId,
             season = launch.seasonNumber,
             episode = launch.episodeNumber,
@@ -485,7 +486,6 @@ internal fun StreamDestination(
             providerAddonId = stream.addonId,
             contentType = launch.type,
             videoId = effectiveVideoId,
-            preferredAddonManifestUrl = launch.preferredAddonManifestUrl,
             parentMetaId = launch.parentMetaId ?: effectiveVideoId,
             parentMetaType = launch.parentMetaType ?: launch.type,
             initialPositionMs = launch.resumePositionMs ?: 0L,
