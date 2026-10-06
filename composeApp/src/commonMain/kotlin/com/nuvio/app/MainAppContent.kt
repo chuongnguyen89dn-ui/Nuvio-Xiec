@@ -1349,6 +1349,7 @@ internal fun MainAppContent(
                                                 profileId = activePlaybackProfileId,
                                                 type = video.addonType,
                                                 videoId = addonMetaId,
+                                                preferredAddonManifestUrl = video.addonManifestUrl,
                                                 parentMetaId = addonMetaId,
                                                 parentMetaType = video.addonType,
                                                 title = video.title,
