@@ -1,12 +1,10 @@
-name: Nuvio iOS
+name: NUVIO iOS — CURRENT
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-    tags:
-      - 'ivyplay-ios-v*'
     paths:
       - 'composeApp/**'
       - 'iosApp/**'
@@ -16,7 +14,7 @@ permissions:
   contents: read
 
 jobs:
-  original-nuvio:
+  nuvio-ios:
     permissions:
       contents: write
     runs-on: macos-15
@@ -77,17 +75,20 @@ jobs:
             echo "bundle_id=$BUNDLE_ID"
             /usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$APP/Info.plist"
           } > Nuvio-build-identity.txt
-      - name: Package unsigned IPA on manual or release build
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
+      - name: Package unsigned Nuvio IPA on manual build
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         run: |
           APP="$(find build/ios-device/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
           test -n "$APP"
+          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
+          test "$BUNDLE_ID" = "com.nuvio.app"
+          rm -rf Payload Nuvio-unsigned.ipa
           mkdir -p Payload
           cp -R "$APP" Payload/
           ditto -c -k --sequesterRsrc --keepParent Payload Nuvio-unsigned.ipa
-      - name: Upload unsigned IPA on manual or release build
-        if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
+      - name: Upload unsigned Nuvio IPA on manual build
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: Nuvio-iPhone-unsigned
@@ -119,8 +120,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add ci-status/ios-latest.log ci-status/ios-latest.txt
           git commit -m "ci(status): record latest iOS build result [skip ci]" || exit 0
-          # ci-status is best-effort bookkeeping only. A concurrent main update must never
-          # turn a successfully built/uploaded IPA into a failed workflow.
           if ! git pull --rebase origin main; then
             git rebase --abort || true
             echo "Skipping ci-status persistence because main changed concurrently."
@@ -132,20 +131,4 @@ jobs:
           fi
         env:
           JOB_STATUS: ${{ job.status }}
-      - name: Stage IvyPlay IPA for versioned releases
-        if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
-        run: |
-          cp Nuvio-unsigned.ipa IvyPlay-unsigned.ipa
-          shasum -a 256 IvyPlay-unsigned.ipa > IvyPlay-unsigned.ipa.sha256
-      - name: Publish IvyPlay iOS release
-        if: startsWith(github.ref, 'refs/tags/ivyplay-ios-v')
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 --clobber
-          else
-            gh release create "${GITHUB_REF_NAME}" IvyPlay-unsigned.ipa IvyPlay-unsigned.ipa.sha256 \
-              --title "IvyPlay iOS ${GITHUB_REF_NAME}" --generate-notes --verify-tag
-          fi
-# Build checkpoint: AV01 + YouTube profile integration
+# Current Nuvio iOS workflow. Push = compile only; manual dispatch = compile + verified Nuvio IPA.
