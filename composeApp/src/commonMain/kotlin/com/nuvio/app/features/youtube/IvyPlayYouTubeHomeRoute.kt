@@ -34,7 +34,16 @@ fun IvyPlayYouTubeHomeRoute(
         loading = true
         error = null
         try {
-            channels = IvyPlayYouTubeAddonRepository.loadChannels(addons, forceRefresh = retry > 0)
+            // Do not resolve YouTube catalogs from the pre-manifest addon snapshot.
+            // On iOS the Home route can mount before installed addon manifests finish
+            // loading; that left the YouTube profile permanently empty even though
+            // the addon was installed. Wait for manifests, then read the latest state.
+            AddonRepository.awaitManifestsLoaded()
+            val readyAddons = AddonRepository.uiState.value.addons
+            channels = IvyPlayYouTubeAddonRepository.loadChannels(
+                readyAddons,
+                forceRefresh = retry > 0,
+            )
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
