@@ -89,7 +89,7 @@ object StreamsRepository {
             episode = episode,
             manualSelection = manualSelection,
         )
-        val requestKey = "$requestToken::pluginsGrouped=${pluginUiState.groupStreamsByRepository}"
+        val requestKey = "$requestToken::source=$preferredAddonManifestUrl::pluginsGrouped=${pluginUiState.groupStreamsByRepository}"
         val currentState = _uiState.value
         if (
             !forceRefresh &&
@@ -137,7 +137,11 @@ object StreamsRepository {
             )
         }
 
-        val embeddedStreams = MetaDetailsRepository.findEmbeddedStreams(videoId)
+        val embeddedStreams = if (preferredAddonManifestUrl == null) {
+            MetaDetailsRepository.findEmbeddedStreams(videoId)
+        } else {
+            emptyList()
+        }
         if (embeddedStreams.isNotEmpty()) {
             log.d { "Using ${embeddedStreams.size} embedded streams for type=$type id=$videoId" }
             val group = AddonStreamGroup(

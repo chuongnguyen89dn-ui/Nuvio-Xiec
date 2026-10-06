@@ -7,6 +7,9 @@ import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.profiles.ProfileRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 @Composable
 fun IvyPlayYouTubeHomeRoute(
@@ -19,14 +22,13 @@ fun IvyPlayYouTubeHomeRoute(
     val addonsState by AddonRepository.uiState.collectAsStateWithLifecycle()
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
     val addons = addonsState.addons
-    // Reset immediately when the installed sources/profile change, including removal.
-    var channels by remember(profileState.activeProfile, addons) { mutableStateOf<List<YouTubeChannelSnapshot>>(emptyList()) }
-    var selectedChannelId by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
-    var selectedPlaylistId by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
-    var loading by remember(profileState.activeProfile, addons) { mutableStateOf(true) }
-    var error by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
-    var retry by remember { mutableStateOf(0) }
-    var readyAddons by remember(profileState.activeProfile) { mutableStateOf(addons) }
+    // Profile changes reset state; source changes are handled by the collector below.
+    var channels by remember(profileState.activeProfile) { mutableStateOf<List<YouTubeChannelSnapshot>>(emptyList()) }
+    var selectedChannelId by remember(profileState.activeProfile) { mutableStateOf<String?>(null) }
+    var selectedPlaylistId by remember(profileState.activeProfile) { mutableStateOf<String?>(null) }
+    var loading by remember(profileState.activeProfile) { mutableStateOf(true) }
+    var error by remember(profileState.activeProfile) { mutableStateOf<String?>(null) }
+    var retry by remember(profileState.activeProfile) { mutableStateOf(0) }
 
     // A rendered empty/loading/error screen is ready for touch; network is not a launch gate.
     LaunchedEffect(Unit) { onContentReady() }
@@ -47,12 +49,36 @@ fun IvyPlayYouTubeHomeRoute(
                 }
                 AddonRepository.pullFromServer(addonProfileId)
             }
-            AddonRepository.awaitManifestsLoaded()
-            readyAddons = AddonRepository.uiState.value.addons
-            channels = IvyPlayYouTubeAddonRepository.loadChannels(
-                readyAddons,
-                forceRefresh = retry > 0,
-            )
+            if (retry > 0) {
+                AddonRepository.uiState.value.addons
+                    .filter { it.enabled && it.errorMessage != null }
+                    .forEach { AddonRepository.refreshAddon(it.manifestUrl, forceRefresh = true) }
+            }
+            // Observe source changes for the entire lifetime of this route. collectLatest
+            // cancels the old catalog request before a removed/disabled source can reappear.
+            AddonRepository.uiState.map { it.addons }.distinctUntilChanged().collectLatest { currentAddons ->
+                channels = emptyList()
+                selectedChannelId = null
+                selectedPlaylistId = null
+                error = null
+                loading = true
+                if (currentAddons.any { it.enabled && it.isRefreshing }) return@collectLatest
+                try {
+                    channels = IvyPlayYouTubeAddonRepository.loadChannels(
+                        currentAddons,
+                        forceRefresh = retry > 0,
+                    )
+                    if (channels.isEmpty() && currentAddons.any { it.enabled && it.errorMessage != null }) {
+                        error = "Không tải được addon. Hãy thử lại."
+                    }
+                } catch (failure: CancellationException) {
+                    throw failure
+                } catch (failure: Exception) {
+                    error = "Không tải được dữ liệu từ addon. Hãy thử lại."
+                } finally {
+                    loading = false
+                }
+            }
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
@@ -95,7 +121,7 @@ fun IvyPlayYouTubeHomeRoute(
             channels = channels,
             loading = loading || addons.any { it.enabled && it.isRefreshing },
             error = error,
-            hasSource = IvyPlayYouTubeAddonRepository.hasYouTubeSource(readyAddons),
+            hasSource = IvyPlayYouTubeAddonRepository.hasYouTubeSource(addons),
             onRetry = { retry++ },
             onManageAddons = onManageAddons,
             onClose = onClose,

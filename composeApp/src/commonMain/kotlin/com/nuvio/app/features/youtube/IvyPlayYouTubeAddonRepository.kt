@@ -33,7 +33,7 @@ object IvyPlayYouTubeAddonRepository {
                 isYouTubeCatalog(manifest.id, manifest.name, manifest.idPrefixes, catalog.id, catalog.name)
             }
 
-        sources.map { (addon, manifest, catalog) ->
+        val channels = sources.map { (addon, manifest, catalog) ->
             async {
                 try {
                     val page = fetchCatalogPage(
@@ -48,7 +48,7 @@ object IvyPlayYouTubeAddonRepository {
                         displayName = catalog.name,
                         avatar = manifest.logoUrl,
                     )
-                    val videos = page.items.map { item ->
+                    val videos = page.items.distinctBy { it.id }.map { item ->
                         YouTubeVideo(
                             videoId = item.id,
                             addonType = catalog.type,
@@ -86,6 +86,11 @@ object IvyPlayYouTubeAddonRepository {
                 }
             }
         }.awaitAll().filterNotNull()
+        // Preserve partial results, but distinguish total network failure from an empty catalog.
+        if (sources.isNotEmpty() && channels.isEmpty()) {
+            error("All YouTube catalogs failed to load")
+        }
+        channels
     }
     private fun catalogYouTubeSectionType(catalogId: String, catalogName: String): YouTubeSectionType {
         val identity = "$catalogId $catalogName".lowercase()

@@ -249,3 +249,26 @@ Validation/limits:
 - Artifact SHA-256 reported by GitHub: `aa766654419309b2b6dce4a8476b08b710bdf4e7621f6317b837f7128acd4b81`.
 - CI/bundle identity verified from completed workflow/logs. Local archive inspection was unavailable because the artifact download URL returned HTTP 403 in the execution environment; do not claim local IPA extraction.
 - Next acceptance step is testing the new IPA on the user's iPhone: no addon, install addon, channel/video taps, player Back, Nuvio Close and addon removal/profile switch. AV01 diagnosis remains open and must follow section 5.
+
+## 10. Profile YouTube audit — 2026-10-06
+
+Continues “Kiểm tra log render nuvio”, from main `53d8dace`.
+
+Concrete source fixes:
+- Home route now observes addon state with collectLatest after initial hydration. Previously, addon changes recreated remembered screen state without restarting the loading effect, which could leave the visible state empty while the old coroutine wrote into discarded state. Source changes now cancel obsolete catalog loads and reset channel/playlist selections.
+- The source indicator uses current addons, not a saved manifest snapshot. Retry also refreshes failed enabled manifests.
+- Total catalog request failure now reaches the retry UI; partial catalog successes remain usable. Duplicate IDs within a catalog are removed before producing keyed channel video rows.
+- Stream request reuse now includes the preferred addon URL. Explicit addon launches bypass the unscoped embedded-stream cache so an equal media ID from another source cannot override the requested source.
+
+Validation:
+- Reviewed source routing through MainAppContent -> StreamLaunch -> StreamsScreen load/retry -> StreamsRepository.
+- git diff --check passed. Local Gradle compilation could not start: services.gradle.org was unreachable while downloading Gradle 9.4.1. CI and physical iPhone validation remain required; no playback success is claimed.
+- SaveTube/resolver selection and AV01/native player source were not changed.
+
+Remaining observed gaps (not fixed by this patch):
+- YouTube addon adapter loads only the first catalog page; pagination is not yet connected.
+- Playlists are currently constructed as empty; related-channel/Series data are not mapped.
+- Home notification action is empty, and the You tab has no content implementation.
+- Search covers loaded catalog items only. Do not describe this as complete channel search or complete YouTube parity.
+
+CI policy: push compiles only; package IPA manually after validation. Preserve runs already in progress. Verify actual run status instead of relying only on ci-status files.
