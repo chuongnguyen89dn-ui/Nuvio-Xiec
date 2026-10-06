@@ -371,6 +371,29 @@ final class YouTubeMPVViewController: UIViewController {
         return mpv_get_property(mpv, name, MPV_FORMAT_DOUBLE, &v) >= 0 ? v : 0
     }
 
+    // Read mpv's live track list; IDs are distinct from the UI's zero-based indexes.
+    func trackIndexes(_ type: String) -> [Int] {
+        let count = Int(getString("track-list/count")) ?? 0
+        return (0..<max(0, count)).filter { getString("track-list/\($0)/type") == type }
+    }
+
+    func trackProperty(_ type: String, at: Int32, name: String) -> String {
+        let indexes = trackIndexes(type)
+        guard at >= 0, Int(at) < indexes.count else { return "" }
+        return getString("track-list/\(indexes[Int(at)])/\(name)")
+    }
+
+    func selectAudioTrack(_ id: Int32) { setString("aid", id < 0 ? "no" : String(id)) }
+    func selectSubtitleTrack(_ id: Int32) { setString("sid", id < 0 ? "no" : String(id)) }
+    func setSubtitleDelay(_ ms: Int32) { setDouble("sub-delay", Double(ms) / 1000.0) }
+    func addSubtitle(_ url: String) { command("sub-add", [url, "select"]) }
+
+    private func getString(_ name: String) -> String {
+        guard let mpv, let value = mpv_get_property_string(mpv, name) else { return "" }
+        defer { mpv_free(value) }
+        return String(cString: value)
+    }
+
     private func drainEvents() {
         eventQueue.async { [weak self] in
             guard let self, let mpv = self.mpv else { return }
@@ -439,29 +462,29 @@ final class YouTubeMPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func applyAudioLanguagePreferences(languages: [String]) {}
     func applySubtitleStyle(textColor: String, backgroundColor: String, outlineColor: String, outlineSize: Float, bold: Bool, fontSize: Float, subPos: Int32, stripSdh: Bool) {}
     func clearExternalSubtitle() {}
-    func clearExternalSubtitleAndSelect(trackId: Int32) {}
-    func setSubtitleDelayMs(delayMs: Int32) {}
-    func setSubtitleUrl(url: String) {}
+    func clearExternalSubtitleAndSelect(trackId: Int32) { playerVC?.selectSubtitleTrack(trackId) }
+    func setSubtitleDelayMs(delayMs: Int32) { playerVC?.setSubtitleDelay(delayMs) }
+    func setSubtitleUrl(url: String) { playerVC?.addSubtitle(url) }
     func syncVideoSurfaceLayout(width: Double, height: Double) {}
     func getVideoQualityCount() -> Int32 { 0 }
     func getVideoQualityHeight(at: Int32) -> Int32 { 0 }
     func getSelectedVideoQualityHeight() -> Int32 { -1 }
     func selectVideoQuality(height: Int32) {}
-    func getAudioTrackCount() -> Int32 { 0 }
-    func getAudioTrackIndex(at: Int32) -> Int32 { 0 }
-    func getAudioTrackId(at: Int32) -> String { "0" }
-    func getAudioTrackLabel(at: Int32) -> String { "" }
-    func getAudioTrackLang(at: Int32) -> String { "" }
-    func isAudioTrackSelected(at: Int32) -> Bool { false }
-    func selectAudioTrack(trackId: Int32) {}
-    func getSubtitleTrackCount() -> Int32 { 0 }
-    func getSubtitleTrackIndex(at: Int32) -> Int32 { 0 }
-    func getSubtitleTrackId(at: Int32) -> String { "0" }
-    func getSubtitleTrackLabel(at: Int32) -> String { "" }
-    func getSubtitleTrackLang(at: Int32) -> String { "" }
-    func isSubtitleTrackSelected(at: Int32) -> Bool { false }
-    func selectSubtitleTrack(trackId: Int32) {}
-    func disableSubtitles() {}
+    func getAudioTrackCount() -> Int32 { Int32(playerVC?.trackIndexes("audio").count ?? 0) }
+    func getAudioTrackIndex(at: Int32) -> Int32 { at }
+    func getAudioTrackId(at: Int32) -> String { playerVC?.trackProperty("audio", at: at, name: "id") ?? "" }
+    func getAudioTrackLabel(at: Int32) -> String { playerVC?.trackProperty("audio", at: at, name: "title") ?? "" }
+    func getAudioTrackLang(at: Int32) -> String { playerVC?.trackProperty("audio", at: at, name: "lang") ?? "" }
+    func isAudioTrackSelected(at: Int32) -> Bool { playerVC?.trackProperty("audio", at: at, name: "selected") == "yes" }
+    func selectAudioTrack(trackId: Int32) { playerVC?.selectAudioTrack(trackId) }
+    func getSubtitleTrackCount() -> Int32 { Int32(playerVC?.trackIndexes("sub").count ?? 0) }
+    func getSubtitleTrackIndex(at: Int32) -> Int32 { at }
+    func getSubtitleTrackId(at: Int32) -> String { playerVC?.trackProperty("sub", at: at, name: "id") ?? "" }
+    func getSubtitleTrackLabel(at: Int32) -> String { playerVC?.trackProperty("sub", at: at, name: "title") ?? "" }
+    func getSubtitleTrackLang(at: Int32) -> String { playerVC?.trackProperty("sub", at: at, name: "lang") ?? "" }
+    func isSubtitleTrackSelected(at: Int32) -> Bool { playerVC?.trackProperty("sub", at: at, name: "selected") == "yes" }
+    func selectSubtitleTrack(trackId: Int32) { playerVC?.selectSubtitleTrack(trackId) }
+    func disableSubtitles() { playerVC?.selectSubtitleTrack(-1) }
 }
 
 // MARK: - Bridge Creator (implements Kotlin protocol)
