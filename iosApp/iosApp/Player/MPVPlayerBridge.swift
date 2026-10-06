@@ -329,10 +329,16 @@ final class YouTubeMPVViewController: UIViewController {
 
     private func command(_ name: String, _ args: [String]) {
         guard let mpv else { return }
-        var values: [String?] = [name] + args + [nil]
-        var cargs = values.map { $0.map { strdup($0) } }
-        defer { cargs.forEach { if let p = $0 { free(p) } } }
-        let status = mpv_command(mpv, &cargs)
+        let values = [name] + args
+        let allocated = values.map { strdup($0) }
+        defer { allocated.forEach { free($0) } }
+        var cargs: [UnsafePointer<CChar>?] = allocated.map { pointer in
+            pointer.map { UnsafePointer($0) }
+        }
+        cargs.append(nil)
+        let status = cargs.withUnsafeMutableBufferPointer { buffer in
+            mpv_command(mpv, buffer.baseAddress)
+        }
         if status < 0 { errorMessage = "libmpv \(name): \(String(cString: mpv_error_string(status)))" }
     }
 
