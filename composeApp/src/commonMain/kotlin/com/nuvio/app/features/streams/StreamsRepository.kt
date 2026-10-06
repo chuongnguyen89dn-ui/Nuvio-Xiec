@@ -47,11 +47,12 @@ object StreamsRepository {
     ): String =
         "$type::$videoId::$season::$episode::$manualSelection"
 
-    fun load(type: String, videoId: String, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false) {
+    fun load(type: String, videoId: String, preferredAddonManifestUrl: String? = null, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false) {
         PluginRepository.setLocalPluginSearchPaused(false)
         load(
             type = type,
             videoId = videoId,
+            preferredAddonManifestUrl = preferredAddonManifestUrl,
             parentMetaId = parentMetaId,
             season = season,
             episode = episode,
@@ -60,11 +61,12 @@ object StreamsRepository {
         )
     }
 
-    fun reload(type: String, videoId: String, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false) {
+    fun reload(type: String, videoId: String, preferredAddonManifestUrl: String? = null, parentMetaId: String? = null, season: Int? = null, episode: Int? = null, manualSelection: Boolean = false) {
         PluginRepository.setLocalPluginSearchPaused(false)
         load(
             type = type,
             videoId = videoId,
+            preferredAddonManifestUrl = preferredAddonManifestUrl,
             parentMetaId = parentMetaId,
             season = season,
             episode = episode,
@@ -73,7 +75,7 @@ object StreamsRepository {
         )
     }
 
-    private fun load(type: String, videoId: String, parentMetaId: String?, season: Int?, episode: Int?, manualSelection: Boolean, forceRefresh: Boolean) {
+    private fun load(type: String, videoId: String, preferredAddonManifestUrl: String?, parentMetaId: String?, season: Int?, episode: Int?, manualSelection: Boolean, forceRefresh: Boolean) {
         val pluginUiState = if (AppFeaturePolicy.pluginsEnabled) {
             PluginRepository.initialize()
             PluginRepository.uiState.value
@@ -158,7 +160,10 @@ object StreamsRepository {
             return
         }
 
-        val installedAddons = AddonRepository.uiState.value.addons.enabledAddons()
+        val allInstalledAddons = AddonRepository.uiState.value.addons.enabledAddons()
+        val installedAddons = preferredAddonManifestUrl?.let { preferred ->
+            allInstalledAddons.filter { it.manifestUrl == preferred }
+        } ?: allInstalledAddons
         val pluginScrapers = if (AppFeaturePolicy.pluginsEnabled) {
             PluginRepository.getEnabledScrapersForType(type)
         } else {
