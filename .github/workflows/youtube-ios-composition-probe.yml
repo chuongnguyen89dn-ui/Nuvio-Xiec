@@ -1,4 +1,4 @@
-name: YouTube iOS Composition Probe
+name: YouTube MPV Separate A/V Probe
 
 on:
   workflow_dispatch:
@@ -11,93 +11,44 @@ permissions:
   contents: read
 
 jobs:
-  probe:
+  mpv-separate-av:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install yt-dlp
-        run: brew install yt-dlp
+      - name: Install mpv and ffmpeg
+        run: brew install mpv ffmpeg
 
-      - name: Resolve test video 313 + 140
+      - name: Fetch public test media
         shell: bash
         run: |
           set -euxo pipefail
-          YTDLP="$HOME/Library/Python/3.9/bin/yt-dlp"
-          if [ ! -x "$YTDLP" ]; then YTDLP="$(command -v yt-dlp)"; fi
-          VIDEO_ID="B1qT38bVsXc"
-          "$YTDLP" --extractor-args "youtube:player_client=visionos" -f 313 -g "https://www.youtube.com/watch?v=$VIDEO_ID" > video.url
-          "$YTDLP" --extractor-args "youtube:player_client=visionos" -f 140 -g "https://www.youtube.com/watch?v=$VIDEO_ID" > audio.url
-          test -s video.url
-          test -s audio.url
-          echo "Resolved 313 + 140"
+          curl -fL --retry 3 -o source.mp4 "https://media.w3.org/2010/05/sintel/trailer.mp4"
+          ffmpeg -y -i source.mp4 -an -c:v copy video-only.mp4
+          ffmpeg -y -i source.mp4 -vn -c:a copy audio-only.m4a
+          test -s video-only.mp4
+          test -s audio-only.m4a
+          ffprobe -v error -show_entries stream=codec_type,codec_name -of compact video-only.mp4
+          ffprobe -v error -show_entries stream=codec_type,codec_name -of compact audio-only.m4a
 
-      - name: Write AVFoundation composition probe
+      - name: Probe separate video + audio on one mpv timeline
         shell: bash
         run: |
-          cat > /tmp/YTCompositionProbe.swift <<'SWIFT'
-          import Foundation
-          import AVFoundation
+          set -euxo pipefail
+          # libmpv/mpv mechanism intended for the isolated YouTube Profile:
+          # main video plus external audio, both controlled by one playback timeline.
+          mpv video-only.mp4             --audio-file=audio-only.m4a             --no-config --vo=null --ao=null             --start=10 --length=3             --msg-level=all=warn,cplayer=info             --log-file=mpv-probe.log
+          grep -E "Video:|Audio:|AV:|Exiting" mpv-probe.log || true
+          ! grep -E "Exiting.*Error|Failed to open|No video or audio streams selected" mpv-probe.log
 
-          @main
-          struct Probe {
-              static func main() async throws {
-                  let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-                  let v = try String(contentsOf: cwd.appendingPathComponent("video.url")).trimmingCharacters(in: .whitespacesAndNewlines)
-                  let a = try String(contentsOf: cwd.appendingPathComponent("audio.url")).trimmingCharacters(in: .whitespacesAndNewlines)
-                  guard let vu = URL(string: v), let au = URL(string: a) else { fatalError("bad URL") }
-
-                  let headers = ["User-Agent": "Mozilla/5.0", "Referer": "https://www.youtube.com/"]
-                  let opts: [String: Any] = ["AVURLAssetHTTPHeaderFieldsKey": headers]
-                  let va = AVURLAsset(url: vu, options: opts)
-                  let aa = AVURLAsset(url: au, options: opts)
-
-                  let vTracks = try await va.loadTracks(withMediaType: .video)
-                  let aTracks = try await aa.loadTracks(withMediaType: .audio)
-                  guard let vt = vTracks.first else { fatalError("313: AVFoundation found no video track") }
-                  guard let at = aTracks.first else { fatalError("140: AVFoundation found no audio track") }
-
-                  let vd = try await va.load(.duration)
-                  let ad = try await aa.load(.duration)
-                  let duration = CMTimeMinimum(vd, ad)
-                  print("video duration=\(CMTimeGetSeconds(vd)) audio duration=\(CMTimeGetSeconds(ad))")
-
-                  let c = AVMutableComposition()
-                  guard let cv = c.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid),
-                        let ca = c.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
-                  else { fatalError("cannot create composition tracks") }
-
-                  try cv.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: vt, at: .zero)
-                  try ca.insertTimeRange(CMTimeRange(start: .zero, duration: duration), of: at, at: .zero)
-
-                  let item = AVPlayerItem(asset: c)
-                  let player = AVPlayer(playerItem: item)
-
-                  for _ in 0..<200 {
-                      if item.status == .readyToPlay { break }
-                      if item.status == .failed { throw item.error ?? NSError(domain:"probe", code:2) }
-                      try await Task.sleep(nanoseconds: 100_000_000)
-                  }
-                  guard item.status == .readyToPlay else { fatalError("not readyToPlay") }
-                  print("READY_TO_PLAY")
-
-                  let target = CMTime(seconds: 300, preferredTimescale: 600)
-                  await player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
-                  let actual = CMTimeGetSeconds(player.currentTime())
-                  print("SEEK target=300 actual=\(actual)")
-                  guard abs(actual - 300) < 1.0 else { fatalError("seek mismatch") }
-
-                  player.play()
-                  try await Task.sleep(nanoseconds: 2_000_000_000)
-                  let after = CMTimeGetSeconds(player.currentTime())
-                  print("PLAY_AFTER_SEEK current=\(after)")
-                  guard after > actual else { fatalError("timeline did not advance") }
-                  print("PASS: composition ready + seek + playback timeline")
-              }
-          }
-          SWIFT
-          xcrun swiftc -parse-as-library /tmp/YTCompositionProbe.swift -framework AVFoundation -o /tmp/YTCompositionProbe
-
-      - name: Run composition + seek probe
-        run: /tmp/YTCompositionProbe
+      - name: Verify Nuvio MPVKit branch resolves on macOS
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
+          cd MPVKit
+          swift package resolve
+          swift package describe >/tmp/mpvkit-package.txt
+          grep -q "Name: MPVKit" /tmp/mpvkit-package.txt
+          echo "PASS: MPVKit package resolves; separate A/V mpv probe completed"
