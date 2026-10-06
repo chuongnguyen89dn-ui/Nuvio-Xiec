@@ -107,6 +107,26 @@ object NuvioPlayerBridgeFactory {
 }
 
 /**
+ * Dedicated iOS bridge factory for YouTube-profile playback.
+ *
+ * This deliberately has a separate registry from [NuvioPlayerBridgeFactory] so
+ * a YouTube playback session never reuses the Nuvio/AV01 player instance or
+ * lifecycle state. The Swift implementation may still use MobileVLCKit as its
+ * hidden engine, but ownership remains isolated to the YouTube profile.
+ */
+object YouTubeProfilePlayerBridgeFactory {
+    private var factoryRef: NuvioPlayerBridgeCreator? = null
+
+    fun registerFactory(creator: NuvioPlayerBridgeCreator) {
+        factoryRef = creator
+    }
+
+    fun create(): NuvioPlayerBridge? = factoryRef?.createBridge()
+
+    val isRegistered: Boolean get() = factoryRef != null
+}
+
+/**
  * Interface for creating bridge instances.
  * Swift implements this to provide the factory.
  */
