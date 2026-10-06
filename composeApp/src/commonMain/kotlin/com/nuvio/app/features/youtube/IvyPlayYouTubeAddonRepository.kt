@@ -53,6 +53,7 @@ object IvyPlayYouTubeAddonRepository {
                             videoId = item.id,
                             addonType = catalog.type,
                             addonMetaId = item.id,
+                            addonManifestUrl = addon.manifestUrl,
                             title = item.name,
                             url = "",
                             thumbnail = item.poster ?: item.banner,
