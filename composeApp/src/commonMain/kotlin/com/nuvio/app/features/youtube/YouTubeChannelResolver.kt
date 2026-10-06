@@ -30,6 +30,7 @@ data class YouTubeVideo(
     val videoId: String,
     val addonMetaId: String? = null,
     val addonType: String = "movie",
+    val addonManifestUrl: String? = null,
     val title: String,
     val url: String,
     val thumbnail: String? = null,
