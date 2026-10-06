@@ -6,6 +6,7 @@ data class StreamLaunch(
     val profileId: Int,
     val type: String,
     val videoId: String,
+    val preferredAddonManifestUrl: String? = null,
     val parentMetaId: String? = null,
     val parentMetaType: String? = null,
     val title: String,
