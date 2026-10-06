@@ -407,6 +407,7 @@ internal fun StreamDestination(
                         StreamsRepository.reload(
                             type = launch.type,
                             videoId = effectiveVideoId,
+                            preferredAddonManifestUrl = launch.preferredAddonManifestUrl,
                             parentMetaId = launch.parentMetaId,
                             season = launch.seasonNumber,
                             episode = launch.episodeNumber,
