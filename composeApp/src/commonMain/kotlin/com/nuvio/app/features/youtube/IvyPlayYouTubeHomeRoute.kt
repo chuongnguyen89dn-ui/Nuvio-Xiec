@@ -28,7 +28,21 @@ fun IvyPlayYouTubeHomeRoute(
     var retry by remember { mutableStateOf(0) }
     var readyAddons by remember(profileState.activeProfile) { mutableStateOf(addons) }
 
-    LaunchedEffect(Unit) { AddonRepository.initialize() }
+    LaunchedEffect(profileState.activeProfile) {
+        AddonRepository.initialize()
+        // A YouTube secondary profile can inherit Profile 1 addons. If the local
+        // addon cache is empty, initialize() has nothing to refresh and the old
+        // route would permanently render an empty YouTube home. Pull the correct
+        // profile's addon list before waiting for manifests/catalogs.
+        if (AddonRepository.uiState.value.addons.isEmpty()) {
+            val addonProfileId = if (profileState.activeProfile?.usesPrimaryAddons == true) {
+                1
+            } else {
+                profileState.activeProfile?.profileIndex ?: ProfileRepository.activeProfileId
+            }
+            AddonRepository.pullFromServer(addonProfileId)
+        }
+    }
     // A rendered empty/loading/error screen is ready for touch; network is not a launch gate.
     LaunchedEffect(Unit) { onContentReady() }
     LaunchedEffect(profileState.activeProfile, addons, retry) {
