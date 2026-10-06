@@ -283,3 +283,15 @@ CI policy: push compiles only; package IPA manually after validation. Preserve r
 - Native YouTube getVideoQualityCount/selectVideoQuality still return zero/do nothing; quality completeness remains open. Source switching away from SaveTube remains prohibited until actual playback validation of the replacement.
 - User authorized automatic IPA packaging after completion and latest-source CI pass, without asking again. Pushes remain compile-only. Device-only validation must be described honestly and does not block producing an IPA to test.
 - During an active session, poll build status about every 30–60 seconds while continuing independent source review. Background automation has an hourly limit; never promise continuous background monitoring.
+
+
+## 12. iOS YouTube quality wiring — 2026-10-06
+
+Commit: 01a55e3a1151b0dd699d352087eeb252ae456c63. Run #173 (37437680716) is in progress; no success/device-playback claim yet.
+
+- YouTube bridge now enumerates formats asynchronously from the existing addon /formats/{id} endpoint when settings call getVideoQualities. Only positive numeric qualities whose reportedQuality matches the requested height are offered. This is provider metadata, not decoded-media proof.
+- Format discovery occurs once per source per playback session. Failed discovery backs off for five minutes. Settings refresh the cached list while visible so asynchronous results appear without closing/reopening.
+- Manual selection uses the original addon's /play/{id}/{height}.mp4 route; Auto uses its existing auto route. SaveTube/provider selection is unchanged. Current playback position is passed through per-file start when reloading.
+- Corrected loadfile per-file option placement for mpv >= 0.38 (insertion index precedes options). Older versions keep their former argument position. Empty request headers now clear prior http-header-fields.
+- Known scope limits: quality discovery applies to the supported /play/{id}/{quality}.mp4 source shape; other source shapes retain Auto. Provider-reported format metadata may still disagree with actual media. Runtime selection/resume/audio on an iPhone remains unverified. External subtitle loading/removal/style and missing channel playlist/Series data remain open as described above.
+- Diff whitespace check passed. Local native/Kotlin build is unavailable here; CI is the compile check.
