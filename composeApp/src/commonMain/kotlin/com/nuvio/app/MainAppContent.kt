@@ -1338,30 +1338,6 @@ internal fun MainAppContent(
                                         DetailRoute(type = meta.type, id = meta.id, title = meta.name),
                                     )
                                 },
-                                onYouTubeClose = { activateTab(AppScreenTab.Settings) },
-                                onYouTubeVideoClick = { video ->
-                                    val addonMetaId = video.addonMetaId
-                                    if (!addonMetaId.isNullOrBlank()) {
-                                        val streamLaunchId = StreamLaunchStore.put(
-                                            StreamLaunch(
-                                                profileId = activePlaybackProfileId,
-                                                type = video.addonType,
-                                                videoId = addonMetaId,
-                                                preferredAddonManifestUrl = video.addonManifestUrl,
-                                                parentMetaId = addonMetaId,
-                                                parentMetaType = video.addonType,
-                                                title = video.title,
-                                                poster = video.thumbnail,
-                                                manualSelection = false,
-                                                playbackContext = PlayerPlaybackContext.YOUTUBE_PROFILE,
-                                            ),
-                                        )
-                                        navController.navigate(StreamRoute(launchId = streamLaunchId, title = video.title))
-                                    }
-                                },
-                                onPosterLongClick = { meta ->
-                                    openPosterActions(PosterActionTarget(preview = meta))
-                                },
                                 onLibraryPosterClick = { item ->
                                     navController.navigate(
                                         DetailRoute(type = item.type, id = item.id, title = item.name),
