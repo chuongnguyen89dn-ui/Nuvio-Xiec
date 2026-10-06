@@ -87,8 +87,8 @@ jobs:
           mkdir -p Payload
           cp -R "$APP" Payload/
           ditto -c -k --sequesterRsrc --keepParent Payload Nuvio-unsigned.ipa
-      - name: Upload unsigned Nuvio IPA on manual build
-        if: github.event_name == 'workflow_dispatch'
+      - name: Upload unsigned Nuvio IPA on explicit package build
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[package-nuvio-ipa]')
         uses: actions/upload-artifact@v4
         with:
           name: Nuvio-iPhone-unsigned
