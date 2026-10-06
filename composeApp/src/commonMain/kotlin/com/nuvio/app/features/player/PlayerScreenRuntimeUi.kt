@@ -150,6 +150,9 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 sourceResponseHeaders = activeSourceResponseHeaders,
                 externalSubtitles = externalSubtitles,
                 streamType = activeStreamType,
+                // On iOS this selects the dedicated YouTube-profile MobileVLCKit
+                // bridge. Nuvio/AV01 keep their existing bridge and lifecycle.
+                useYoutubeChunkedPlayback = isYouTubeProfilePlayback,
                 modifier = Modifier.fillMaxSize(),
                 playWhenReady = shouldPlay,
                 initialPositionMs = activeInitialPositionMs.takeIf { it > 0L },
