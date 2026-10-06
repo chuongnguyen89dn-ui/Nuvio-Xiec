@@ -206,6 +206,7 @@ internal fun StreamDestination(
             providerAddonId = stream.addonId,
             contentType = launch.type,
             videoId = effectiveVideoId,
+            preferredAddonManifestUrl = launch.preferredAddonManifestUrl,
             parentMetaId = launch.parentMetaId ?: effectiveVideoId,
             parentMetaType = launch.parentMetaType ?: launch.type,
             torrentInfoHash = infoHash,
@@ -274,6 +275,7 @@ internal fun StreamDestination(
         val cacheKey = StreamLinkCacheRepository.contentKey(
             type = launch.type,
             videoId = effectiveVideoId,
+            preferredAddonManifestUrl = launch.preferredAddonManifestUrl,
             parentMetaId = launch.parentMetaId,
             season = launch.seasonNumber,
             episode = launch.episodeNumber,
@@ -482,6 +484,7 @@ internal fun StreamDestination(
             providerAddonId = stream.addonId,
             contentType = launch.type,
             videoId = effectiveVideoId,
+            preferredAddonManifestUrl = launch.preferredAddonManifestUrl,
             parentMetaId = launch.parentMetaId ?: effectiveVideoId,
             parentMetaType = launch.parentMetaType ?: launch.type,
             initialPositionMs = launch.resumePositionMs ?: 0L,
