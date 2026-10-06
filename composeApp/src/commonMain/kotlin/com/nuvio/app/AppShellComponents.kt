@@ -39,10 +39,6 @@ import com.nuvio.app.features.search.SearchScreen
 import com.nuvio.app.features.settings.AppBrandWordmark
 import com.nuvio.app.features.settings.SettingsScreen
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
-import com.nuvio.app.features.youtube.IvyPlayYouTubeHomeGate
-import com.nuvio.app.features.youtube.IvyPlayYouTubeHomeRoute
-import com.nuvio.app.features.youtube.YouTubeVideo
-import com.nuvio.app.features.youtube.YouTubeChannel
 import com.nuvio.app.navigation.AppRoute
 import com.nuvio.app.navigation.NuvioNavigator
 import kotlinx.coroutines.flow.Flow
@@ -91,8 +87,6 @@ internal data class AppTabActions(
     val onCatalogClick: ((HomeCatalogSection) -> Unit)? = null,
     val onPosterClick: ((MetaPreview) -> Unit)? = null,
     val onPosterLongClick: ((MetaPreview) -> Unit)? = null,
-    val onYouTubeVideoClick: ((YouTubeVideo) -> Unit)? = null,
-    val onYouTubeClose: () -> Unit = {},
     val onLibraryPosterClick: ((LibraryItem) -> Unit)? = null,
     val onLibraryPosterLongClick: ((LibraryItem, LibrarySection) -> Unit)? = null,
     val onLibrarySectionViewAllClick: ((LibrarySection, LibrarySortOption) -> Unit)? = null,
@@ -134,31 +128,18 @@ internal fun AppTabHost(
             when (tab) {
                 AppScreenTab.Home -> {
                     key(state.homeContentGeneration) {
-                        IvyPlayYouTubeHomeGate(
-                            youtubeContent = {
-                                IvyPlayYouTubeHomeRoute(
-                                    modifier = Modifier.fillMaxSize(),
-                                    onVideoClick = { video -> actions.onYouTubeVideoClick?.invoke(video) },
-                                    onClose = actions.onYouTubeClose,
-                                    onManageAddons = actions.onAddonsSettingsClick,
-                                    onContentReady = actions.onInitialHomeContentRendered,
-                                )
-                            },
-                            standardContent = {
-                                HomeScreen(
-                                    modifier = Modifier.fillMaxSize(),
-                                    animateCollectionGifs = state.animateHomeCollectionGifs,
-                                    scrollToTopRequests = requests.homeScrollToTopRequests,
-                                    onCatalogClick = actions.onCatalogClick,
-                                    onPosterClick = actions.onPosterClick,
-                                    onPosterLongClick = actions.onPosterLongClick,
-                                    onContinueWatchingClick = actions.onContinueWatchingClick,
-                                    onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
-                                    continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
-                                    onFolderClick = actions.onFolderClick,
-                                    onFirstCatalogRendered = actions.onInitialHomeContentRendered,
-                                )
-                            },
+                        HomeScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            animateCollectionGifs = state.animateHomeCollectionGifs,
+                            scrollToTopRequests = requests.homeScrollToTopRequests,
+                            onCatalogClick = actions.onCatalogClick,
+                            onPosterClick = actions.onPosterClick,
+                            onPosterLongClick = actions.onPosterLongClick,
+                            onContinueWatchingClick = actions.onContinueWatchingClick,
+                            onContinueWatchingLongPress = actions.onContinueWatchingLongPress,
+                            continueWatchingDisintegrationRequest = state.continueWatchingDisintegrationRequest,
+                            onFolderClick = actions.onFolderClick,
+                            onFirstCatalogRendered = actions.onInitialHomeContentRendered,
                         )
                     }
                 }
