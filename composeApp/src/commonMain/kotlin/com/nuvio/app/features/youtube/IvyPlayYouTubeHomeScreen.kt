@@ -40,7 +40,6 @@ fun IvyPlayYouTubeHomeScreen(
     var query by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("Home") }
-    val videos = channels.flatMap { it.videos + it.live }.distinctBy { it.videoId }
     val shorts = channels.flatMap { it.shorts }.distinctBy { it.videoId }
     val homeVideos = channels.flatMap { snapshot ->
         val all = snapshot.videos + snapshot.shorts + snapshot.live
@@ -52,7 +51,10 @@ fun IvyPlayYouTubeHomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Black,
-        topBar = { YouTubeTopBar(onClose, { showSearch = !showSearch }) },
+        topBar = { YouTubeTopBar(onClose, {
+            showSearch = !showSearch
+            if (!showSearch) query = ""
+        }) },
         bottomBar = { YouTubeBottomBar(selectedTab) { selectedTab = it } },
     ) { padding ->
         LazyColumn(
@@ -77,7 +79,9 @@ fun IvyPlayYouTubeHomeScreen(
             }
             if (channels.isNotEmpty()) {
                 if (selectedTab == "Subscriptions") {
-                    items(channels, key = { it.channel.channelId }) { snapshot ->
+                    items(channels.filter { snapshot ->
+                        query.isBlank() || (snapshot.channel.displayName ?: snapshot.channel.name).contains(query, ignoreCase = true)
+                    }, key = { it.channel.channelId }) { snapshot ->
                         Row(Modifier.fillMaxWidth().clickable { onChannelClick(snapshot.channel) }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically) {
                             AsyncImage(snapshot.channel.avatar, null, Modifier.size(44.dp).clip(CircleShape))
@@ -91,8 +95,11 @@ fun IvyPlayYouTubeHomeScreen(
                     if (visibleVideos.isEmpty()) item {
                         Text("Không có video phù hợp trong dữ liệu addon.", color = Color.White, modifier = Modifier.padding(24.dp))
                     }
-                    if (selectedTab == "Home" && shorts.isNotEmpty()) {
-                        item { YouTubeShortsShelf(shorts, onVideoClick) }
+                    val visibleShorts = shorts.filter {
+                        query.isBlank() || it.title.contains(query, ignoreCase = true) || it.channelName.orEmpty().contains(query, ignoreCase = true)
+                    }
+                    if (selectedTab == "Home" && visibleShorts.isNotEmpty()) {
+                        item { YouTubeShortsShelf(visibleShorts, onVideoClick) }
                     }
                     items(visibleVideos, key = { it.videoId }) { video ->
                         val channel = channels.firstOrNull { it.channel.channelId == video.channelId }?.channel

@@ -3,6 +3,9 @@ package com.nuvio.app.features.youtube
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.catalog.fetchCatalogPage
+import com.nuvio.app.features.catalog.mergeCatalogItems
+import com.nuvio.app.features.catalog.nextCatalogPaginationState
+import com.nuvio.app.features.catalog.supportsPagination
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -36,19 +39,53 @@ object IvyPlayYouTubeAddonRepository {
         val channels = sources.map { (addon, manifest, catalog) ->
             async {
                 try {
-                    val page = fetchCatalogPage(
+                    val firstPage = fetchCatalogPage(
                         manifestUrl = addon.manifestUrl,
                         type = catalog.type,
                         catalogId = catalog.id,
                         forceRefresh = forceRefresh,
                     )
+                    var items = firstPage.items
+                    var pagination = nextCatalogPaginationState(
+                        supportsPagination = catalog.supportsPagination(),
+                        requestedSkip = 0,
+                        page = firstPage,
+                        loadedNewItems = items.isNotEmpty(),
+                        consecutiveDuplicatePages = 0,
+                    )
+                    while (pagination.nextSkip != null) {
+                        val skip = pagination.nextSkip ?: break
+                        val page = try {
+                            fetchCatalogPage(
+                                manifestUrl = addon.manifestUrl,
+                                type = catalog.type,
+                                catalogId = catalog.id,
+                                skip = skip,
+                                forceRefresh = forceRefresh,
+                            )
+                        } catch (failure: CancellationException) {
+                            throw failure
+                        } catch (_: Exception) {
+                            // Keep the successfully loaded pages when a later page is unavailable.
+                            break
+                        }
+                        val merged = mergeCatalogItems(items, page.items)
+                        pagination = nextCatalogPaginationState(
+                            supportsPagination = true,
+                            requestedSkip = skip,
+                            page = page,
+                            loadedNewItems = merged.size > items.size,
+                            consecutiveDuplicatePages = pagination.consecutiveDuplicatePages,
+                        )
+                        items = merged
+                    }
                     val channel = YouTubeChannel(
                         channelId = "${addon.manifestUrl}|${catalog.type}|${catalog.id}",
                         name = catalog.name,
                         displayName = catalog.name,
                         avatar = manifest.logoUrl,
                     )
-                    val videos = page.items.distinctBy { it.id }.map { item ->
+                    val videos = items.distinctBy { it.id }.map { item ->
                         YouTubeVideo(
                             videoId = item.id,
                             addonType = catalog.type,
