@@ -76,7 +76,7 @@ jobs:
             /usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$APP/Info.plist"
           } > Nuvio-build-identity.txt
       - name: Package unsigned Nuvio IPA on manual build
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[package-nuvio-ipa]')
         shell: bash
         run: |
           APP="$(find build/ios-device/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
