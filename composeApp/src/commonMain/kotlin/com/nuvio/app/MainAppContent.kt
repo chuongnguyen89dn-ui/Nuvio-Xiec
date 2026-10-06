@@ -499,7 +499,6 @@ internal fun MainAppContent(
         selectedTab,
     ) {
         val visible =
-            (profileState.activeProfile?.contentMode != IvyPlayContentMode.YOUTUBE || selectedTab != AppScreenTab.Home) &&
             initialHomeReady &&
             !profileSwitchLoading &&
             currentRoute is TabsRoute
