@@ -1,7 +1,7 @@
 name: NUVIO iOS — CURRENT
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
   push:
     branches:
       - main
