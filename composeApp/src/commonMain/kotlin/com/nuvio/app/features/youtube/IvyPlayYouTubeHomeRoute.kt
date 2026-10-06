@@ -25,7 +25,8 @@ fun IvyPlayYouTubeHomeRoute(
     var selectedPlaylistId by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
     var loading by remember(profileState.activeProfile, addons) { mutableStateOf(true) }
     var error by remember(profileState.activeProfile, addons) { mutableStateOf<String?>(null) }
-    var retry by remember { mutableStateOf(0) }\n    var readyAddons by remember(profileState.activeProfile) { mutableStateOf(addons) }
+    var retry by remember { mutableStateOf(0) }
+    var readyAddons by remember(profileState.activeProfile) { mutableStateOf(addons) }
 
     LaunchedEffect(Unit) { AddonRepository.initialize() }
     // A rendered empty/loading/error screen is ready for touch; network is not a launch gate.
@@ -39,7 +40,7 @@ fun IvyPlayYouTubeHomeRoute(
             // loading; that left the YouTube profile permanently empty even though
             // the addon was installed. Wait for manifests, then read the latest state.
             AddonRepository.awaitManifestsLoaded()
-            val readyAddons = AddonRepository.uiState.value.addons
+            readyAddons = AddonRepository.uiState.value.addons
             channels = IvyPlayYouTubeAddonRepository.loadChannels(
                 readyAddons,
                 forceRefresh = retry > 0,
