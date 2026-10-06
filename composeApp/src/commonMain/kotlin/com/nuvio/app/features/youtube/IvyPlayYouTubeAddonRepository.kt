@@ -6,6 +6,7 @@ import com.nuvio.app.features.catalog.fetchCatalogPage
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CancellationException
 
 object IvyPlayYouTubeAddonRepository {
     fun hasYouTubeSource(addons: List<ManagedAddon>): Boolean = addons.any { addon ->
@@ -34,7 +35,7 @@ object IvyPlayYouTubeAddonRepository {
 
         sources.map { (addon, manifest, catalog) ->
             async {
-                run {
+                try {
                     val page = fetchCatalogPage(
                         manifestUrl = addon.manifestUrl,
                         type = catalog.type,
@@ -76,9 +77,14 @@ object IvyPlayYouTubeAddonRepository {
                         live = if (sectionType == YouTubeSectionType.LIVE) videos else emptyList(),
                         playlists = emptyList(),
                     )
+                } catch (failure: CancellationException) {
+                    throw failure
+                } catch (_: Exception) {
+                    // One unavailable catalog must not blank the whole YouTube profile.
+                    null
                 }
             }
-        }.awaitAll()
+        }.awaitAll().filterNotNull()
     }
     private fun catalogYouTubeSectionType(catalogId: String, catalogName: String): YouTubeSectionType {
         val identity = "$catalogId $catalogName".lowercase()
