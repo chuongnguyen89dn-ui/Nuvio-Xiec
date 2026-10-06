@@ -163,8 +163,9 @@ object AddonRepository {
         if (_uiState.value.addons.isEmpty()) return
         uiState.first { state ->
             state.addons.isEmpty() ||
-                state.addons.any { it.manifest != null } ||
-                state.addons.none { it.isRefreshing }
+                state.addons
+                    .filter { it.enabled }
+                    .none { it.isRefreshing }
         }
     }
 
