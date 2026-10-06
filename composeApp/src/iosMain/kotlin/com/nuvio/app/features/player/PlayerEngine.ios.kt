@@ -69,8 +69,12 @@ actual fun PlatformPlayerSurface(
     val playerSettings by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
     val latestPlayerSettings = rememberUpdatedState(playerSettings)
 
-    val bridge = remember {
-        NuvioPlayerBridgeFactory.create()
+    val bridge = remember(useYoutubeChunkedPlayback) {
+        if (useYoutubeChunkedPlayback) {
+            YouTubeProfilePlayerBridgeFactory.create()
+        } else {
+            NuvioPlayerBridgeFactory.create()
+        }
     }
 
     if (bridge == null) {
