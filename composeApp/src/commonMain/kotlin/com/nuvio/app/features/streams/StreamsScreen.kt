@@ -106,6 +106,7 @@ import org.jetbrains.compose.resources.stringResource
 fun StreamsScreen(
     type: String,
     videoId: String,
+    preferredAddonManifestUrl: String? = null,
     parentMetaId: String,
     parentMetaType: String,
     title: String,
@@ -187,10 +188,11 @@ fun StreamsScreen(
     val effectiveResumePositionMs = resumeState.positionMs
     val effectiveResumeProgressFraction = resumeState.progressFraction
 
-    LaunchedEffect(type, videoId, seasonNumber, episodeNumber, manualSelection) {
+    LaunchedEffect(type, videoId, preferredAddonManifestUrl, seasonNumber, episodeNumber, manualSelection) {
         StreamsRepository.load(
             type = type,
             videoId = videoId,
+            preferredAddonManifestUrl = preferredAddonManifestUrl,
             parentMetaId = parentMetaId,
             season = seasonNumber,
             episode = episodeNumber,
@@ -226,6 +228,7 @@ fun StreamsScreen(
         StreamsRepository.reload(
             type = type,
             videoId = videoId,
+            preferredAddonManifestUrl = preferredAddonManifestUrl,
             parentMetaId = parentMetaId,
             season = seasonNumber,
             episode = episodeNumber,
