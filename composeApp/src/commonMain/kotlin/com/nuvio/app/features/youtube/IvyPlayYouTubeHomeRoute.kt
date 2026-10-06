@@ -28,31 +28,25 @@ fun IvyPlayYouTubeHomeRoute(
     var retry by remember { mutableStateOf(0) }
     var readyAddons by remember(profileState.activeProfile) { mutableStateOf(addons) }
 
-    LaunchedEffect(profileState.activeProfile) {
-        AddonRepository.initialize()
-        // A YouTube secondary profile can inherit Profile 1 addons. If the local
-        // addon cache is empty, initialize() has nothing to refresh and the old
-        // route would permanently render an empty YouTube home. Pull the correct
-        // profile's addon list before waiting for manifests/catalogs.
-        if (AddonRepository.uiState.value.addons.isEmpty()) {
-            val addonProfileId = if (profileState.activeProfile?.usesPrimaryAddons == true) {
-                1
-            } else {
-                profileState.activeProfile?.profileIndex ?: ProfileRepository.activeProfileId
-            }
-            AddonRepository.pullFromServer(addonProfileId)
-        }
-    }
     // A rendered empty/loading/error screen is ready for touch; network is not a launch gate.
     LaunchedEffect(Unit) { onContentReady() }
-    LaunchedEffect(profileState.activeProfile, addons, retry) {
+
+    // Hydrate -> wait for manifests -> load catalogs in one coroutine. Keeping these
+    // steps sequential prevents the catalog loader from observing the transient empty
+    // addon state while a secondary YouTube profile is still inheriting Profile 1.
+    LaunchedEffect(profileState.activeProfile, retry) {
         loading = true
         error = null
         try {
-            // Do not resolve YouTube catalogs from the pre-manifest addon snapshot.
-            // On iOS the Home route can mount before installed addon manifests finish
-            // loading; that left the YouTube profile permanently empty even though
-            // the addon was installed. Wait for manifests, then read the latest state.
+            AddonRepository.initialize()
+            if (AddonRepository.uiState.value.addons.isEmpty()) {
+                val addonProfileId = if (profileState.activeProfile?.usesPrimaryAddons == true) {
+                    1
+                } else {
+                    profileState.activeProfile?.profileIndex ?: ProfileRepository.activeProfileId
+                }
+                AddonRepository.pullFromServer(addonProfileId)
+            }
             AddonRepository.awaitManifestsLoaded()
             readyAddons = AddonRepository.uiState.value.addons
             channels = IvyPlayYouTubeAddonRepository.loadChannels(
