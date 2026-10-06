@@ -286,23 +286,98 @@ final class YouTubeMPVViewController: UIViewController {
         }, Unmanaged.passUnretained(self).toOpaque())
     }
 
-    func load(videoURL: String, audioURL: String?, headers: [String: String]) {
+    private var qualitySource: URL?
+    private var qualityTask: URLSessionDataTask?
+    private var qualityRequested = false
+    private var qualityRetryAfter = Date.distantPast
+    private(set) var availableQualities: [Int32] = []
+    private(set) var selectedQuality: Int32 = 0
+
+    private func sourceForQuality(_ videoURL: String) -> URL? {
+        guard var parts = URLComponents(string: videoURL) else { return nil }
+        let path = parts.path.split(separator: "/")
+        guard path.count == 3, path[0] == "play", path[2].hasSuffix(".mp4") else { return nil }
+        parts.path = "/play/\(path[1])/auto.mp4"
+        return parts.url
+    }
+
+    func refreshQualities() {
+        guard !qualityRequested, Date() >= qualityRetryAfter, let source = qualitySource,
+              var parts = URLComponents(url: source, resolvingAgainstBaseURL: false) else { return }
+        qualityRequested = true
+        let videoID = source.path.split(separator: "/")[1]
+        parts.path = "/formats/\(videoID)"
+        guard let url = parts.url else { return }
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 120
+        qualityTask = URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+            guard let data, (response as? HTTPURLResponse)?.statusCode == 200,
+                  let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let formats = root["formats"] as? [[String: Any]] else {
+                DispatchQueue.main.async {
+                    guard let self, self.qualitySource == source else { return }
+                    self.qualityRequested = false
+                    self.qualityRetryAfter = Date().addingTimeInterval(300)
+                }
+                return
+            }
+            let heights = formats.compactMap { format -> Int32? in
+                guard let height = format["quality"] as? NSNumber,
+                      let reported = format["reportedQuality"] as? NSNumber,
+                      height.int32Value > 0, height.int32Value == reported.int32Value else { return nil }
+                return height.int32Value
+            }
+            DispatchQueue.main.async {
+                guard let self, self.qualitySource == source else { return }
+                self.availableQualities = Array(Set(heights)).sorted(by: >)
+            }
+        }
+        qualityTask?.resume()
+    }
+
+    func selectQuality(_ height: Int32) {
+        guard let source = qualitySource, height == 0 || availableQualities.contains(height),
+              var parts = URLComponents(url: source, resolvingAgainstBaseURL: false) else { return }
+        let videoID = source.path.split(separator: "/")[1]
+        parts.path = "/play/\(videoID)/\(height == 0 ? "auto" : String(height)).mp4"
+        guard let url = parts.url else { return }
+        let resumeSeconds = Double(positionMs) / 1000.0
+        selectedQuality = height
+        load(videoURL: url.absoluteString, audioURL: lastAudioURL, headers: lastHeaders, startSeconds: resumeSeconds)
+    }
+
+    func load(videoURL: String, audioURL: String?, headers: [String: String], startSeconds: Double? = nil) {
         if !isViewLoaded { loadViewIfNeeded() }
         guard mpv != nil else { return }
+        let source = sourceForQuality(videoURL)
+        if source != qualitySource {
+            qualityTask?.cancel()
+            qualitySource = source
+            qualityRequested = false
+            qualityRetryAfter = .distantPast
+            availableQualities = []
+            selectedQuality = 0
+        }
         lastVideoURL = videoURL
         lastAudioURL = audioURL
         lastHeaders = headers
         errorMessage = ""
-        if !headers.isEmpty {
-            let value = headers.map { "\($0.key): \($0.value)" }.joined(separator: ",")
-            setString("http-header-fields", value)
-        }
+        let value = headers.map { "\($0.key): \($0.value)" }.joined(separator: ",")
+        setString("http-header-fields", value)
         var options: [String] = []
         if let audioURL, !audioURL.isEmpty {
             options.append("audio-file=\(audioURL)")
         }
+        if let startSeconds { options.append("start=\(max(0, startSeconds))") }
         var args = [videoURL, "replace"]
-        if !options.isEmpty { args.append(options.joined(separator: ",")) }
+        if !options.isEmpty {
+            // mpv 0.38 inserted the playlist index before per-file options.
+            let version = getString("mpv-version").split(whereSeparator: { !$0.isNumber && $0 != "." }).first?.split(separator: ".") ?? []
+            let major = version.first.flatMap { Int($0) } ?? 0
+            let minor = version.dropFirst().first.flatMap { Int($0) } ?? 0
+            if major > 0 || minor >= 38 { args.append("-1") }
+            args.append(options.joined(separator: ","))
+        }
         command("loadfile", args)
     }
 
@@ -412,6 +487,7 @@ final class YouTubeMPVViewController: UIViewController {
     }
 
     deinit {
+        qualityTask?.cancel()
         if let mpv {
             mpv_set_wakeup_callback(mpv, nil, nil)
             mpv_terminate_destroy(mpv)
@@ -466,10 +542,13 @@ final class YouTubeMPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
     func setSubtitleDelayMs(delayMs: Int32) { playerVC?.setSubtitleDelay(delayMs) }
     func setSubtitleUrl(url: String) { playerVC?.addSubtitle(url) }
     func syncVideoSurfaceLayout(width: Double, height: Double) {}
-    func getVideoQualityCount() -> Int32 { 0 }
-    func getVideoQualityHeight(at: Int32) -> Int32 { 0 }
-    func getSelectedVideoQualityHeight() -> Int32 { -1 }
-    func selectVideoQuality(height: Int32) {}
+    func getVideoQualityCount() -> Int32 { playerVC?.refreshQualities(); return Int32(playerVC?.availableQualities.count ?? 0) }
+    func getVideoQualityHeight(at: Int32) -> Int32 {
+        guard let playerVC, at >= 0, Int(at) < playerVC.availableQualities.count else { return 0 }
+        return playerVC.availableQualities[Int(at)]
+    }
+    func getSelectedVideoQualityHeight() -> Int32 { playerVC?.selectedQuality ?? 0 }
+    func selectVideoQuality(height: Int32) { playerVC?.selectQuality(height) }
     func getAudioTrackCount() -> Int32 { Int32(playerVC?.trackIndexes("audio").count ?? 0) }
     func getAudioTrackIndex(at: Int32) -> Int32 { at }
     func getAudioTrackId(at: Int32) -> String { playerVC?.trackProperty("audio", at: at, name: "id") ?? "" }

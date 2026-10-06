@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.isActive
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import com.nuvio.app.features.p2p.P2pStreamingState
@@ -467,6 +469,16 @@ private fun BoxScope.RenderPlaybackOverlays(
 @Composable
 private fun PlayerScreenRuntime.RenderYouTubeSettings() {
     if (!isYouTubeProfilePlayback) return
+    // iOS resolves format availability asynchronously when the settings are opened.
+    // Refresh only while this panel is visible; the bridge coalesces the network request.
+    LaunchedEffect(showYouTubeSettings, playerController) {
+        if (!showYouTubeSettings) return@LaunchedEffect
+        while (isActive) {
+            videoQualities = playerController?.getVideoQualities().orEmpty()
+                .ifEmpty { listOf(PlayerVideoQuality(null, "Auto", true)) }
+            kotlinx.coroutines.delay(1000)
+        }
+    }
     YouTubeMobileSettingsPanel(
         visible = showYouTubeSettings,
         page = youtubeSettingsPage,
