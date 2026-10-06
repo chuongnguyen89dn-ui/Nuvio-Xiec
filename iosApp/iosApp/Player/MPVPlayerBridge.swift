@@ -226,10 +226,20 @@ final class MPVPlayerBridgeCreator: NSObject, NuvioPlayerBridgeCreator {
     }
 }
 
+/// Separate creator used only by PlayerPlaybackContext.YOUTUBE_PROFILE.
+/// It intentionally creates a fresh MobileVLCKit-backed bridge instead of
+/// sharing the Nuvio/AV01 player instance or any playback lifecycle state.
+final class YouTubeProfilePlayerBridgeCreator: NSObject, NuvioPlayerBridgeCreator {
+    func createBridge() -> any NuvioPlayerBridge {
+        return MPVPlayerBridgeImpl()
+    }
+}
+
 // MARK: - Registration (called from Swift app startup)
 
 enum NuvioPlayerRegistration {
     static func register() {
         NuvioPlayerBridgeFactory.shared.registerFactory(creator: MPVPlayerBridgeCreator())
+        YouTubeProfilePlayerBridgeFactory.shared.registerFactory(creator: YouTubeProfilePlayerBridgeCreator())
     }
 }
