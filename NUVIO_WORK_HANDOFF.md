@@ -272,3 +272,14 @@ Remaining observed gaps (not fixed by this patch):
 - Search covers loaded catalog items only. Do not describe this as complete channel search or complete YouTube parity.
 
 CI policy: push compiles only; package IPA manually after validation. Preserve runs already in progress. Verify actual run status instead of relying only on ci-status files.
+
+
+## 11. Continuation — 2026-10-06 afternoon
+
+- Commit c28a14b removed unsupported preferredAddonManifestUrl arguments from PlayerLaunch and the unscoped link-cache key call, while retaining the source URL on StreamsRepository retries. Explicit addon launches bypass the unscoped saved-link cache. Run #170 (37433248900) completed SUCCESS. This is compile verification only; it was a push build and did not package an IPA.
+- Commit 8b88078 connects the YouTube iOS libmpv bridge's audio/subtitle enumeration, selected-state and selection methods to mpv track-list/aid/sid instead of returning zero tracks/no-op selection. Subtitle delay and externally selected subtitle URLs now have real commands. Run #171 is pending verification. Automatic subtitlesJson loading, external subtitle removal and subtitle styling remain unimplemented in this bridge; do not claim complete subtitle support.
+- Commit fb655ed adds pagination using the existing catalog pagination/merge helpers, only when a manifest explicitly declares skip support. Duplicate-page progression uses the existing bounded policy; later-page errors preserve earlier items. Home search now filters the channel list and Shorts shelf, and closing search clears its hidden filter. Run #172 is queued.
+- Correction to the earlier first-page diagnosis: current Toolchecklink/youtube-khoai-service/server.js returns whole catalogs and does not advertise skip. Its Khoai response is not truncated by the app parser (maxItems is null). Do not attribute every missing-video report to pagination. Verify actual live catalog counts separately.
+- Native YouTube getVideoQualityCount/selectVideoQuality still return zero/do nothing; quality completeness remains open. Source switching away from SaveTube remains prohibited until actual playback validation of the replacement.
+- User authorized automatic IPA packaging after completion and latest-source CI pass, without asking again. Pushes remain compile-only. Device-only validation must be described honestly and does not block producing an IPA to test.
+- During an active session, poll build status about every 30–60 seconds while continuing independent source review. Background automation has an hourly limit; never promise continuous background monitoring.
