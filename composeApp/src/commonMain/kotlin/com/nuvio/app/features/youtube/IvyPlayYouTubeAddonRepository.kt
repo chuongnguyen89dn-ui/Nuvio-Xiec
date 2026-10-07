@@ -13,27 +13,35 @@ import kotlinx.coroutines.CancellationException
 
 object IvyPlayYouTubeAddonRepository {
     fun hasYouTubeSource(addons: List<ManagedAddon>): Boolean = addons.any { addon ->
-        addon.enabled && addon.manifest?.let { manifest ->
-            manifest.catalogs.any { catalog ->
-                isYouTubeCatalog(manifest.id, manifest.name, manifest.idPrefixes, catalog.id, catalog.name)
-            }
-        } == true
+        addon.enabled && addon.manifest?.let(::isYouTubeAddon) == true
     }
 
-    private fun isYouTubeCatalog(id: String, name: String, prefixes: List<String>, catalogId: String, catalogName: String): Boolean {
-        val identity = (listOf(id, name, catalogId, catalogName) + prefixes).joinToString(" ").lowercase()
-        return "youtube" in identity || "khoai" in identity || "hoa-ban" in identity || "hoaban" in identity
+    private fun isYouTubeAddon(manifest: com.nuvio.app.features.addons.AddonManifest): Boolean {
+        val manifestIdentity = (listOf(manifest.id, manifest.name) + manifest.idPrefixes)
+            .joinToString(" ")
+            .lowercase()
+        return "youtube" in manifestIdentity ||
+            "khoai" in manifestIdentity ||
+            "hoa-ban" in manifestIdentity ||
+            "hoaban" in manifestIdentity ||
+            manifest.catalogs.any { catalog ->
+                val catalogIdentity = "${catalog.id} ${catalog.name}".lowercase()
+                "youtube" in catalogIdentity ||
+                    "khoai" in catalogIdentity ||
+                    "hoa-ban" in catalogIdentity ||
+                    "hoaban" in catalogIdentity
+            }
     }
 
     suspend fun loadChannels(addons: List<ManagedAddon>, forceRefresh: Boolean = false): List<YouTubeChannelSnapshot> = coroutineScope {
         val sources = addons.enabledAddons()
             .flatMap { addon ->
                 val manifest = addon.manifest ?: return@flatMap emptyList()
-                manifest.catalogs
-                    .map { catalog -> Triple(addon, manifest, catalog) }
-            }
-            .filter { (_, manifest, catalog) ->
-                isYouTubeCatalog(manifest.id, manifest.name, manifest.idPrefixes, catalog.id, catalog.name)
+                if (!isYouTubeAddon(manifest)) return@flatMap emptyList()
+                // Once an installed addon is identified as the YouTube source, expose all
+                // of its catalogs. Channel/category names are addon data and must not be
+                // hard-coded here (e.g. Sang/BomBom would otherwise be silently dropped).
+                manifest.catalogs.map { catalog -> Triple(addon, manifest, catalog) }
             }
 
         val channels = sources.map { (addon, manifest, catalog) ->
