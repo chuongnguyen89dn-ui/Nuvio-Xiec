@@ -2,6 +2,7 @@ package com.nuvio.app.features.youtube
 
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.addons.enabledAddons
+import com.nuvio.app.features.catalog.CatalogTarget
 import com.nuvio.app.features.catalog.fetchCatalogPage
 import com.nuvio.app.features.catalog.mergeCatalogItems
 import com.nuvio.app.features.catalog.nextCatalogPaginationState
@@ -34,23 +35,38 @@ object IvyPlayYouTubeAddonRepository {
     }
 
     suspend fun loadChannels(addons: List<ManagedAddon>, forceRefresh: Boolean = false): List<YouTubeChannelSnapshot> = coroutineScope {
+        // The YouTube profile is presentation only: derive the same addon catalog targets
+        // Nuvio uses instead of maintaining a second channel/source registry.
         val sources = addons.enabledAddons()
             .flatMap { addon ->
                 val manifest = addon.manifest ?: return@flatMap emptyList()
                 if (!isYouTubeAddon(manifest)) return@flatMap emptyList()
-                // Once an installed addon is identified as the YouTube source, expose all
-                // of its catalogs. Channel/category names are addon data and must not be
-                // hard-coded here (e.g. Sang/BomBom would otherwise be silently dropped).
-                manifest.catalogs.map { catalog -> Triple(addon, manifest, catalog) }
+                manifest.catalogs.map { catalog ->
+                    NuvioYouTubeCatalogSource(
+                        addon = addon,
+                        manifest = manifest,
+                        catalog = catalog,
+                        target = CatalogTarget.Addon(
+                            manifestUrl = addon.manifestUrl,
+                            contentType = catalog.type,
+                            catalogId = catalog.id,
+                            supportsPagination = target.supportsPagination,
+                        ),
+                    )
+                }
             }
 
-        val channels = sources.map { (addon, manifest, catalog) ->
+        val channels = sources.map { source ->
+            val addon = source.addon
+            val manifest = source.manifest
+            val catalog = source.catalog
+            val target = source.target
             async {
                 try {
                     val firstPage = fetchCatalogPage(
-                        manifestUrl = addon.manifestUrl,
-                        type = catalog.type,
-                        catalogId = catalog.id,
+                        manifestUrl = target.manifestUrl,
+                        type = target.contentType,
+                        catalogId = target.catalogId,
                         forceRefresh = forceRefresh,
                     )
                     var items = firstPage.items
@@ -65,9 +81,9 @@ object IvyPlayYouTubeAddonRepository {
                         val skip = pagination.nextSkip ?: break
                         val page = try {
                             fetchCatalogPage(
-                                manifestUrl = addon.manifestUrl,
-                                type = catalog.type,
-                                catalogId = catalog.id,
+                                manifestUrl = target.manifestUrl,
+                                type = target.contentType,
+                                catalogId = target.catalogId,
                                 skip = skip,
                                 forceRefresh = forceRefresh,
                             )
@@ -137,6 +153,13 @@ object IvyPlayYouTubeAddonRepository {
         }
         channels
     }
+    private data class NuvioYouTubeCatalogSource(
+        val addon: ManagedAddon,
+        val manifest: com.nuvio.app.features.addons.AddonManifest,
+        val catalog: com.nuvio.app.features.addons.AddonCatalog,
+        val target: CatalogTarget.Addon,
+    )
+
     private fun catalogYouTubeSectionType(catalogId: String, catalogName: String): YouTubeSectionType {
         val identity = "$catalogId $catalogName".lowercase()
         return when {
