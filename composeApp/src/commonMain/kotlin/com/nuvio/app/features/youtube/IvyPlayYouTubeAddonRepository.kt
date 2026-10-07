@@ -2,6 +2,7 @@ package com.nuvio.app.features.youtube
 
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.addons.enabledAddons
+import com.nuvio.app.features.catalog.CatalogTarget
 import com.nuvio.app.features.catalog.fetchCatalogPage
 import com.nuvio.app.features.catalog.mergeCatalogItems
 import com.nuvio.app.features.catalog.nextCatalogPaginationState
@@ -45,6 +46,12 @@ object IvyPlayYouTubeAddonRepository {
                         addon = addon,
                         manifest = manifest,
                         catalog = catalog,
+                        target = CatalogTarget.Addon(
+                            manifestUrl = addon.manifestUrl,
+                            contentType = catalog.type,
+                            catalogId = catalog.id,
+                            supportsPagination = target.supportsPagination,
+                        ),
                     )
                 }
             }
@@ -53,12 +60,13 @@ object IvyPlayYouTubeAddonRepository {
             val addon = source.addon
             val manifest = source.manifest
             val catalog = source.catalog
+            val target = source.target
             async {
                 try {
                     val firstPage = fetchCatalogPage(
-                        manifestUrl = addon.manifestUrl,
-                        type = catalog.type,
-                        catalogId = catalog.id,
+                        manifestUrl = target.manifestUrl,
+                        type = target.contentType,
+                        catalogId = target.catalogId,
                         forceRefresh = forceRefresh,
                     )
                     var items = firstPage.items
@@ -73,9 +81,9 @@ object IvyPlayYouTubeAddonRepository {
                         val skip = pagination.nextSkip ?: break
                         val page = try {
                             fetchCatalogPage(
-                                manifestUrl = addon.manifestUrl,
-                                type = catalog.type,
-                                catalogId = catalog.id,
+                                manifestUrl = target.manifestUrl,
+                                type = target.contentType,
+                                catalogId = target.catalogId,
                                 skip = skip,
                                 forceRefresh = forceRefresh,
                             )
@@ -149,6 +157,7 @@ object IvyPlayYouTubeAddonRepository {
         val addon: ManagedAddon,
         val manifest: com.nuvio.app.features.addons.AddonManifest,
         val catalog: com.nuvio.app.features.addons.AddonCatalog,
+        val target: CatalogTarget.Addon,
     )
 
     private fun catalogYouTubeSectionType(catalogId: String, catalogName: String): YouTubeSectionType {
