@@ -11,34 +11,32 @@ on:
 permissions:
   contents: read
 
+env:
+  GRADLE_OPTS: -Xmx8g -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1536m
+  KOTLIN_DAEMON_JVMARGS: -Xmx6g
+
 jobs:
-  youtube-profile-ios:
+  profile-source-check:
+    name: 1/3 — YouTube Profile source
     runs-on: macos-15
-    timeout-minutes: 120
-    env:
-      NUVIO_IOS_DISTRIBUTION: appstore
-      GRADLE_OPTS: -Xmx8g -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1536m
-      KOTLIN_DAEMON_JVMARGS: -Xmx6g
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Verify YouTube Profile scope
-        shell: bash
-        run: |
-          echo "YouTube Profile isolated build — source scope: features/youtube"
-      - name: Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Configure Nuvio Cloud account sync
-        shell: bash
-        run: |
-          cat > local.properties <<'EOF'
-          NUVIO_SUPABASE_URL=https://api.nuvio.tv
-          NUVIO_SUPABASE_ANON_KEY=sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN
-          NUVIO_SUPABASE_FALLBACK_URL=
-          EOF
+      - name: Compile Kotlin metadata
+        run: ./gradlew :composeApp:compileCommonMainKotlinMetadata --stacktrace
+
+  profile-ios-prepare:
+    name: 2/3 — iOS dependencies
+    needs: profile-source-check
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
       - name: Fetch original Nuvio player dependency
         run: |
           git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
@@ -57,7 +55,46 @@ jobs:
           RUBY
           cd iosApp
           pod install
-      - name: Compile YouTube Profile integration for Nuvio iPhone
+      - name: Verify iOS workspace
+        run: test -d iosApp/iosApp.xcworkspace
+
+  profile-ios-compile:
+    name: 3/3 — iPhone integration compile
+    needs: profile-ios-prepare
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      NUVIO_IOS_DISTRIBUTION: appstore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Configure Nuvio Cloud account sync
+        shell: bash
+        run: |
+          cat > local.properties <<'EOF'
+          NUVIO_SUPABASE_URL=https://api.nuvio.tv
+          NUVIO_SUPABASE_ANON_KEY=sb_publishable_1Clq8rlTVACkdcZuqr6_AD__xUUC_EN
+          NUVIO_SUPABASE_FALLBACK_URL=
+          EOF
+      - name: Fetch original Nuvio player dependency
+        run: git clone --depth 1 --branch Nuvio https://github.com/NuvioMedia/MPVKit.git MPVKit
+      - name: Install MobileVLCKit
+        shell: bash
+        run: |
+          sudo gem install cocoapods --no-document
+          cat > iosApp/Podfile <<'RUBY'
+          source 'https://github.com/CocoaPods/Specs.git'
+          platform :ios, '16.1'
+          target 'iosApp' do
+            pod 'MobileVLCKit', '3.7.3'
+          end
+          RUBY
+          cd iosApp && pod install
+      - name: Compile YouTube Profile integration
         shell: bash
         run: |
           set -o pipefail
@@ -66,15 +103,11 @@ jobs:
             -derivedDataPath build/youtube-profile-ios CODE_SIGNING_ALLOWED=NO build 2>&1 | tee youtube-profile-build.log
           APP="$(find build/youtube-profile-ios/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)"
           test -n "$APP"
-          BUNDLE_ID=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")
-          test "$BUNDLE_ID" = "com.nuvio.app"
-          printf 'scope=YouTube Profile TEST\ncommit=%s\nrun_id=%s\nbundle_id=%s\n' "$GITHUB_SHA" "$GITHUB_RUN_ID" "$BUNDLE_ID" > YouTube-Profile-build-identity.txt
-      - name: Upload YouTube Profile test build log
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")" = "com.nuvio.app"
+      - name: Upload test log only — NEVER IPA
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: YouTube-Profile-iOS-TEST-build-log
-          path: |
-            youtube-profile-build.log
-            YouTube-Profile-build-identity.txt
+          name: YouTube-Profile-iOS-TEST-log
+          path: youtube-profile-build.log
           retention-days: 7
