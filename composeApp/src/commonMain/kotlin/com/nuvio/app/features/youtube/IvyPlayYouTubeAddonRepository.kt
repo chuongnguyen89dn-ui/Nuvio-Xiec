@@ -50,7 +50,7 @@ object IvyPlayYouTubeAddonRepository {
                             manifestUrl = addon.manifestUrl,
                             contentType = catalog.type,
                             catalogId = catalog.id,
-                            supportsPagination = target.supportsPagination,
+                            supportsPagination = catalog.supportsPagination(),
                         ),
                     )
                 }
