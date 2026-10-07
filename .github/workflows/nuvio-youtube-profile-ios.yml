@@ -34,7 +34,7 @@ jobs:
 
   profile-ios-prepare:
     name: 2/3 — iOS dependencies
-    needs: profile-source-check
+    # Independent from Kotlin source validation: prepare iOS dependencies in parallel.
     runs-on: macos-15
     timeout-minutes: 45
     steps:
@@ -62,7 +62,8 @@ jobs:
 
   profile-ios-compile:
     name: 3/3 — iPhone integration compile
-    needs: profile-ios-prepare
+    # Integration starts only after both independent checkpoints pass.
+    needs: [profile-source-check, profile-ios-prepare]
     runs-on: macos-15
     timeout-minutes: 120
     env:
