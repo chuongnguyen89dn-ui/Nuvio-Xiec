@@ -40,6 +40,7 @@ fun IvyPlayYouTubeHomeScreen(
     var query by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("Home") }
+    val channelVideos = channels.flatMap { it.videos + it.shorts + it.live }
     val shorts = channels.flatMap { it.shorts }.distinctBy { it.videoId }
     val homeVideos = channels.flatMap { snapshot ->
         val all = snapshot.videos + snapshot.shorts + snapshot.live
@@ -90,7 +91,7 @@ fun IvyPlayYouTubeHomeScreen(
                         }
                     }
                 } else {
-                    val visibleVideos = (if (selectedTab == "Shorts") shorts else if (selectedTab == "You") emptyList() else homeVideos)
+                    val visibleVideos = (if (selectedTab == "Shorts") shorts else if (selectedTab == "You") channelVideos else homeVideos)
                         .filter { query.isBlank() || it.title.contains(query, ignoreCase = true) || it.channelName.orEmpty().contains(query, ignoreCase = true) }
                     if (visibleVideos.isEmpty()) item {
                         Text("Không có video phù hợp trong dữ liệu addon.", color = Color.White, modifier = Modifier.padding(24.dp))
@@ -119,7 +120,6 @@ private fun YouTubeTopBar(onClose: () -> Unit, onSearch: () -> Unit) {
         Spacer(Modifier.width(6.dp))
         Text("YouTube", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = { }) { Icon(Icons.Default.NotificationsNone, "Thông báo", tint = Color.White) }
         IconButton(onClick = onSearch) { Icon(Icons.Default.Search, "Tìm kiếm", tint = Color.White) }
     }
 }
