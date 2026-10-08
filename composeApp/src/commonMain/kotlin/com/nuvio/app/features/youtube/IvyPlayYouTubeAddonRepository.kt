@@ -71,7 +71,7 @@ object IvyPlayYouTubeAddonRepository {
                     )
                     var items = firstPage.items
                     var pagination = nextCatalogPaginationState(
-                        supportsPagination = catalog.supportsPagination(),
+                        supportsPagination = target.supportsPagination || firstPage.rawItemCount >= 20,
                         requestedSkip = 0,
                         page = firstPage,
                         loadedNewItems = items.isNotEmpty(),
