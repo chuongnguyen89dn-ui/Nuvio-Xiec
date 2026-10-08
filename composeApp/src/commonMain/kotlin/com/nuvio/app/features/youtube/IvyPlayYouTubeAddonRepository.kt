@@ -41,7 +41,10 @@ object IvyPlayYouTubeAddonRepository {
             .flatMap { addon ->
                 val manifest = addon.manifest ?: return@flatMap emptyList()
                 if (!isYouTubeAddon(manifest)) return@flatMap emptyList()
-                manifest.catalogs.map { catalog ->
+                manifest.catalogs.filterNot { catalog ->
+                    val id = catalog.id.lowercase()
+                    id.contains("test") || id.contains("film4k")
+                }.map { catalog ->
                     NuvioYouTubeCatalogSource(
                         addon = addon,
                         manifest = manifest,
