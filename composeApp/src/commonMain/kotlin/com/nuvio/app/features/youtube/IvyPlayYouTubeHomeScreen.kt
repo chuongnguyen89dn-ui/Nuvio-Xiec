@@ -40,7 +40,6 @@ fun IvyPlayYouTubeHomeScreen(
     var query by remember { mutableStateOf("") }
     var showSearch by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("Home") }
-    val channelVideos = channels.flatMap { it.videos + it.shorts + it.live }
     val shorts = channels.flatMap { it.shorts }.distinctBy { it.videoId }
     val homeVideos = channels.flatMap { snapshot ->
         val all = snapshot.videos + snapshot.shorts + snapshot.live
@@ -52,11 +51,13 @@ fun IvyPlayYouTubeHomeScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Color.Black,
-        topBar = { YouTubeTopBar(onClose, {
+        topBar = { YouTubeTopBar({
             showSearch = !showSearch
             if (!showSearch) query = ""
         }) },
-        bottomBar = { YouTubeBottomBar(selectedTab) { selectedTab = it } },
+        bottomBar = { YouTubeBottomBar(selectedTab) { tab ->
+            if (tab == "You") onClose() else selectedTab = tab
+        } },
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
@@ -91,7 +92,7 @@ fun IvyPlayYouTubeHomeScreen(
                         }
                     }
                 } else {
-                    val visibleVideos = (if (selectedTab == "Shorts") shorts else if (selectedTab == "You") channelVideos else homeVideos)
+                    val visibleVideos = (if (selectedTab == "Shorts") shorts else homeVideos)
                         .filter { query.isBlank() || it.title.contains(query, ignoreCase = true) || it.channelName.orEmpty().contains(query, ignoreCase = true) }
                     if (visibleVideos.isEmpty()) item {
                         Text("Không có video phù hợp trong dữ liệu addon.", color = Color.White, modifier = Modifier.padding(24.dp))
@@ -113,9 +114,8 @@ fun IvyPlayYouTubeHomeScreen(
 }
 
 @Composable
-private fun YouTubeTopBar(onClose: () -> Unit, onSearch: () -> Unit) {
+private fun YouTubeTopBar(onSearch: () -> Unit) {
     Row(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        IconButton(onClick = onClose) { Icon(Icons.Default.ArrowBack, "Về Nuvio", tint = Color.White) }
         Icon(Icons.Default.PlayCircle, null, tint = Color.Red, modifier = Modifier.size(29.dp))
         Spacer(Modifier.width(6.dp))
         Text("YouTube", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
