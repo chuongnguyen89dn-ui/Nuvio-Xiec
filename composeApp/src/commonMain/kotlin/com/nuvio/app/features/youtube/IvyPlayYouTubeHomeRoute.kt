@@ -62,7 +62,10 @@ fun IvyPlayYouTubeHomeRoute(
                 selectedPlaylistId = null
                 error = null
                 loading = true
-                if (currentAddons.any { it.enabled && it.isRefreshing }) return@collectLatest
+                if (currentAddons.any { it.enabled && it.isRefreshing }) {
+                    loading = true
+                    return@collectLatest
+                }
                 try {
                     channels = IvyPlayYouTubeAddonRepository.loadChannels(
                         currentAddons,
